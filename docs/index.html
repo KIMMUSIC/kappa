@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kappa - Autonomous Self-Healing Agent Harness</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Variables ─────────────────────────────────── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --lavender:#e7e6f7;--pink:#e3d0d8;--mauve-light:#aea3b0;
+  --mauve:#827081;--blue:#c6d2ed;
+  --bg:#0c0b12;--bg-card:rgba(231,230,247,0.04);
+  --bg-card-hover:rgba(231,230,247,0.08);
+  --text:#e7e6f7;--text-muted:#aea3b0;--text-dim:rgba(174,163,176,0.5);
+  --border:rgba(174,163,176,0.15);--border-accent:rgba(198,210,237,0.3);
+  --font-mono:'JetBrains Mono',monospace;--font-sans:'Inter',sans-serif;
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);
+  line-height:1.7;overflow-x:hidden}
+::selection{background:rgba(130,112,129,0.4);color:#fff}
+a{color:var(--blue);text-decoration:none;transition:color .2s}
+a:hover{color:var(--lavender)}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--mauve);border-radius:3px}
+
+/* ── Utility ───────────────────────────────────────────── */
+.container{max-width:1100px;margin:0 auto;padding:0 2rem}
+.mono{font-family:var(--font-mono)}
+.text-muted{color:var(--text-muted)}
+.text-dim{color:var(--text-dim)}
+.text-blue{color:var(--blue)}
+.text-pink{color:var(--pink)}
+.text-mauve{color:var(--mauve-light)}
+.text-lavender{color:var(--lavender)}
+
+/* ── Scroll Reveal ─────────────────────────────────────── */
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:.1s}
+.reveal-delay-2{transition-delay:.2s}
+.reveal-delay-3{transition-delay:.3s}
+
+/* ── Animated BG Mesh ──────────────────────────────────── */
+.bg-mesh{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.bg-mesh .orb{position:absolute;border-radius:50%;filter:blur(120px);opacity:.08;animation:float 20s ease-in-out infinite}
+.bg-mesh .orb-1{width:600px;height:600px;background:var(--mauve);top:-10%;left:-10%;animation-delay:0s}
+.bg-mesh .orb-2{width:500px;height:500px;background:var(--blue);top:40%;right:-15%;animation-delay:-7s}
+.bg-mesh .orb-3{width:400px;height:400px;background:var(--pink);bottom:-5%;left:30%;animation-delay:-14s}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-40px) scale(1.05)}66%{transform:translate(-20px,30px) scale(.95)}}
+
+/* ── Nav ───────────────────────────────────────────────── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1rem 0;
+  backdrop-filter:blur(20px);background:rgba(12,11,18,0.8);border-bottom:1px solid var(--border);
+  transition:transform .3s}
+nav .container{display:flex;align-items:center;justify-content:space-between}
+nav .logo{font-family:var(--font-mono);font-weight:700;font-size:1.1rem;letter-spacing:2px;color:var(--lavender)}
+nav .logo span{color:var(--mauve-light);font-weight:300}
+nav ul{display:flex;gap:2rem;list-style:none}
+nav ul a{font-size:.85rem;color:var(--text-muted);letter-spacing:.5px;transition:color .2s}
+nav ul a:hover{color:var(--lavender)}
+
+/* ── Hero ──────────────────────────────────────────────── */
+.hero{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;z-index:1}
+.hero-content{position:relative}
+.hero .version{display:inline-block;font-family:var(--font-mono);font-size:.75rem;color:var(--mauve-light);
+  border:1px solid var(--border);padding:.3rem .8rem;border-radius:20px;margin-bottom:1.5rem;letter-spacing:1px}
+.hero h1{font-family:var(--font-mono);font-size:clamp(3rem,8vw,6rem);font-weight:700;
+  letter-spacing:6px;line-height:1.1;margin-bottom:1rem;
+  background:linear-gradient(135deg,var(--lavender),var(--blue),var(--pink));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero .subtitle{font-size:1.1rem;color:var(--text-muted);max-width:550px;margin:0 auto 2rem;line-height:1.8}
+.hero .metrics{display:flex;gap:3rem;justify-content:center;margin-top:3rem}
+.hero .metric{text-align:center}
+.hero .metric-value{font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--lavender)}
+.hero .metric-label{font-size:.75rem;color:var(--text-dim);margin-top:.3rem;letter-spacing:1px;text-transform:uppercase}
+.scroll-indicator{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);
+  animation:bounce 2s ease-in-out infinite}
+.scroll-indicator svg{width:24px;height:24px;stroke:var(--mauve-light);stroke-width:2;fill:none}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(10px)}}
+
+/* ── Section ───────────────────────────────────────────── */
+section{position:relative;z-index:1;padding:8rem 0}
+.section-label{font-family:var(--font-mono);font-size:.7rem;color:var(--mauve);
+  letter-spacing:3px;text-transform:uppercase;margin-bottom:.8rem}
+.section-title{font-family:var(--font-mono);font-size:clamp(1.5rem,4vw,2.2rem);
+  font-weight:600;color:var(--lavender);margin-bottom:1rem}
+.section-desc{color:var(--text-muted);max-width:600px;margin-bottom:3rem;font-size:.95rem}
+
+/* ── Architecture Flow ─────────────────────────────────── */
+.arch-flow{position:relative;padding:3rem 0}
+.flow-line{position:absolute;left:50%;top:0;bottom:0;width:2px;
+  background:linear-gradient(to bottom,transparent,var(--border-accent),var(--border-accent),transparent)}
+.flow-line::after{content:'';position:absolute;top:0;left:-1px;width:4px;height:100%;
+  background:linear-gradient(to bottom,transparent,var(--blue),transparent);
+  animation:flow-pulse 3s ease-in-out infinite;opacity:0}
+@keyframes flow-pulse{0%{opacity:0;transform:translateY(-100%)}50%{opacity:.6}100%{opacity:0;transform:translateY(100%)}}
+
+.arch-node{position:relative;display:flex;align-items:center;margin-bottom:4rem}
+.arch-node:nth-child(odd){flex-direction:row;padding-right:calc(50% + 3rem)}
+.arch-node:nth-child(even){flex-direction:row-reverse;padding-left:calc(50% + 3rem)}
+.arch-node .dot{position:absolute;left:50%;transform:translateX(-50%);width:14px;height:14px;
+  border-radius:50%;border:2px solid var(--blue);background:var(--bg);z-index:2}
+.arch-node .dot::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--blue);
+  animation:dot-glow 2s ease-in-out infinite alternate}
+@keyframes dot-glow{from{opacity:.4}to{opacity:1}}
+
+/* ── Cards ─────────────────────────────────────────────── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;
+  padding:2rem;transition:all .3s;cursor:default;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--border-accent),transparent);opacity:0;transition:opacity .3s}
+.card:hover{background:var(--bg-card-hover);border-color:var(--border-accent);
+  transform:translateY(-2px);box-shadow:0 8px 40px rgba(198,210,237,0.05)}
+.card:hover::before{opacity:1}
+.card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  margin-bottom:1.2rem;font-family:var(--font-mono);font-size:1rem;font-weight:700}
+.card-icon.budget{background:rgba(198,210,237,0.1);color:var(--blue)}
+.card-icon.sandbox{background:rgba(227,208,216,0.1);color:var(--pink)}
+.card-icon.graph{background:rgba(130,112,129,0.15);color:var(--mauve-light)}
+.card h3{font-family:var(--font-mono);font-size:1rem;font-weight:600;color:var(--lavender);margin-bottom:.6rem}
+.card p{color:var(--text-muted);font-size:.85rem;line-height:1.7}
+.card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+
+/* ── Timeline ──────────────────────────────────────────── */
+.timeline{position:relative;padding-left:3rem}
+.timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:linear-gradient(to bottom,var(--border-accent),var(--border))}
+.timeline-item{position:relative;margin-bottom:4rem;padding-left:2rem}
+.timeline-item::before{content:'';position:absolute;left:-3rem;top:.5rem;width:10px;height:10px;
+  border-radius:50%;border:2px solid var(--blue);background:var(--bg)}
+.timeline-item.active::before{background:var(--blue);box-shadow:0 0 12px rgba(198,210,237,0.4)}
+.timeline-item .task-tag{font-family:var(--font-mono);font-size:.7rem;color:var(--mauve);
+  letter-spacing:2px;text-transform:uppercase;margin-bottom:.5rem}
+.timeline-item h3{font-family:var(--font-mono);font-size:1.1rem;color:var(--lavender);margin-bottom:.5rem}
+.timeline-item p{color:var(--text-muted);font-size:.9rem;margin-bottom:1rem}
+.timeline-item .status{display:inline-flex;align-items:center;gap:.4rem;
+  font-family:var(--font-mono);font-size:.7rem;letter-spacing:1px;
+  padding:.25rem .7rem;border-radius:12px;border:1px solid rgba(198,210,237,0.2);color:var(--blue)}
+.timeline-item .status::before{content:'';width:6px;height:6px;border-radius:50%;
+  background:var(--blue);animation:status-blink 2s ease-in-out infinite}
+@keyframes status-blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Pipeline Viz ──────────────────────────────────────── */
+.pipeline{display:flex;flex-direction:column;gap:0;position:relative}
+.pipeline-layer{display:flex;align-items:center;gap:1.5rem;padding:1.5rem 2rem;
+  border:1px solid var(--border);border-radius:10px;position:relative;
+  transition:all .3s;cursor:default}
+.pipeline-layer:hover{background:var(--bg-card-hover);border-color:var(--border-accent)}
+.pipeline-layer .layer-num{font-family:var(--font-mono);font-size:.7rem;color:var(--text-dim);
+  width:20px;flex-shrink:0}
+.pipeline-layer .layer-name{font-family:var(--font-mono);font-size:.9rem;color:var(--lavender);
+  min-width:200px}
+.pipeline-layer .layer-desc{font-size:.8rem;color:var(--text-muted);flex:1}
+.pipeline-layer .layer-impl{font-family:var(--font-mono);font-size:.7rem;color:var(--mauve);
+  padding:.2rem .6rem;border:1px solid var(--border);border-radius:6px;white-space:nowrap}
+.pipeline-connector{width:2px;height:1.5rem;background:var(--border-accent);margin-left:3.5rem;position:relative}
+.pipeline-connector::after{content:'';position:absolute;left:-3px;bottom:-2px;
+  border:4px solid transparent;border-top-color:var(--border-accent)}
+
+/* ── Flow Diagram ──────────────────────────────────────── */
+.flow-diagram{position:relative;padding:3rem 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.flow-diagram svg{width:100%;min-width:750px;max-width:1060px;margin:0 auto;display:block}
+.flow-diagram .flow-path{stroke:var(--border-accent);stroke-width:2;fill:none;
+  stroke-dasharray:8 4;animation:dash-flow .8s linear infinite}
+.flow-diagram .flow-path-active{stroke:var(--blue);stroke-width:2;fill:none;
+  stroke-dasharray:8 4;animation:dash-flow .8s linear infinite}
+@keyframes dash-flow{to{stroke-dashoffset:-12}}
+.flow-diagram .node-box{fill:rgba(231,230,247,0.04);stroke:var(--border);stroke-width:1;rx:8}
+.flow-diagram .node-box:hover{fill:rgba(231,230,247,0.08);stroke:var(--border-accent)}
+.flow-diagram text{font-family:'JetBrains Mono',monospace;fill:var(--lavender)}
+.flow-diagram .label-small{font-size:10px;fill:var(--text-muted)}
+.flow-diagram .label-tiny{font-size:9px;fill:var(--mauve)}
+
+/* ── Code Block ────────────────────────────────────────── */
+.code-block{background:rgba(12,11,18,0.8);border:1px solid var(--border);border-radius:10px;
+  padding:1.5rem;font-family:var(--font-mono);font-size:.8rem;line-height:1.8;
+  overflow-x:auto;color:var(--text-muted);position:relative}
+.code-block .comment{color:var(--text-dim)}
+.code-block .keyword{color:var(--blue)}
+.code-block .string{color:var(--pink)}
+.code-block .func{color:var(--lavender)}
+.code-block .num{color:var(--mauve-light)}
+.code-block-header{display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid var(--border)}
+.code-block-header .dot{width:8px;height:8px;border-radius:50%;background:var(--mauve)}
+.code-block-header .dot:nth-child(2){background:var(--mauve-light)}
+.code-block-header .dot:nth-child(3){background:var(--blue)}
+.code-block-header span{font-size:.7rem;color:var(--text-dim);margin-left:auto}
+.code-block pre{margin:0;font-family:inherit;font-size:inherit;line-height:inherit;color:inherit;white-space:pre;overflow-x:auto}
+
+/* ── Test Results ──────────────────────────────────────── */
+.test-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.test-card{text-align:center;padding:1.5rem;border:1px solid var(--border);border-radius:10px;
+  transition:all .3s}
+.test-card:hover{border-color:var(--border-accent)}
+.test-card .count{font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--lavender)}
+.test-card .label{font-size:.75rem;color:var(--text-muted);margin-top:.3rem}
+.test-bar{height:4px;background:var(--border);border-radius:2px;margin-top:1rem;overflow:hidden}
+.test-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--blue),var(--lavender));
+  width:0;transition:width 1.5s cubic-bezier(.16,1,.3,1)}
+
+/* ── Footer ────────────────────────────────────────────── */
+footer{position:relative;z-index:1;padding:4rem 0;border-top:1px solid var(--border);text-align:center}
+footer p{font-size:.8rem;color:var(--text-dim)}
+footer a{color:var(--mauve-light)}
+footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:1.5rem}
+
+/* ── Responsive ────────────────────────────────────────── */
+@media(max-width:1024px){
+  .card-grid{grid-template-columns:repeat(2,1fr)}
+  .pipeline-layer .layer-name{min-width:150px}
+  .pipeline-layer .layer-desc{min-width:0}
+}
+@media(max-width:768px){
+  .card-grid{grid-template-columns:1fr}
+  .test-grid{grid-template-columns:repeat(2,1fr)}
+  .hero .metrics{flex-direction:column;gap:1.5rem}
+  .arch-node:nth-child(odd),.arch-node:nth-child(even){padding:0 0 0 2rem;flex-direction:row}
+  .flow-line{left:0}
+  .arch-node .dot{left:0}
+  nav ul{display:none}
+  .pipeline-layer{flex-wrap:wrap;gap:.8rem}
+  .pipeline-layer .layer-name{min-width:auto;width:100%}
+  .pipeline-layer .layer-desc{width:100%}
+  .pipeline-layer .layer-impl{margin-left:auto}
+  section{padding:5rem 0}
+  .container{padding:0 1.2rem}
+}
+@media(prefers-reduced-motion:reduce){
+  .reveal{transition:none;opacity:1;transform:none}
+  .bg-mesh .orb,.flow-line::after,.arch-node .dot::after{animation:none}
+}
+</style>
+</head>
+<body>
+
+<!-- BG Mesh -->
+<div class="bg-mesh">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<!-- Nav -->
+<nav>
+  <div class="container">
+    <div class="logo">KAPPA <span>v0.1</span></div>
+    <ul>
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#development">Development</a></li>
+      <li><a href="#modules">Modules</a></li>
+      <li><a href="#tests">Tests</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="version reveal">PHASE 1 &mdash; HARNESS INFRASTRUCTURE</div>
+    <h1 class="reveal reveal-delay-1">KAPPA</h1>
+    <p class="subtitle reveal reveal-delay-2">
+      LLM의 확률적 출력을 결정론적으로 통제하는 자율 수행 에이전트 하네스.
+      예산 방어, 샌드박스 격리, 자가 치유 루프로 구성된 3중 안전망.
+    </p>
+    <div class="metrics reveal reveal-delay-3">
+      <div class="metric">
+        <div class="metric-value" data-target="47">0</div>
+        <div class="metric-label">Tests Passing</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" data-target="3">0</div>
+        <div class="metric-label">Safety Layers</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" data-target="5">0</div>
+        <div class="metric-label">GEODE Layers</div>
+      </div>
+    </div>
+  </div>
+  <div class="scroll-indicator">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+  </div>
+</section>
+
+<!-- Architecture Overview -->
+<section id="architecture">
+  <div class="container">
+    <div class="section-label reveal">System Overview</div>
+    <div class="section-title reveal">Self-Healing State Machine</div>
+    <p class="section-desc reveal">
+      에이전트의 모든 코드 생성은 4개 노드와 3개 조건부 엣지로 구성된
+      LangGraph 상태 머신을 통과합니다. 실패 시 자동으로 원인을 피드백하여 수정을 시도합니다.
+    </p>
+
+    <!-- Flow Diagram SVG -->
+    <div class="flow-diagram reveal">
+      <svg viewBox="0 0 1060 320" xmlns="http://www.w3.org/2000/svg">
+        <!-- Connection paths -->
+        <path class="flow-path-active" d="M 170 80 L 290 80"/>
+        <path class="flow-path-active" d="M 410 80 L 530 80"/>
+        <path class="flow-path-active" d="M 650 80 L 770 80"/>
+        <path class="flow-path-active" d="M 890 80 L 960 80"/>
+        <!-- Heal-back paths -->
+        <path class="flow-path" d="M 350 110 L 350 200 L 100 200 L 100 110"/>
+        <path class="flow-path" d="M 590 110 L 590 240 L 100 240 L 100 110"/>
+        <path class="flow-path" d="M 830 110 L 830 280 L 100 280 L 100 110"/>
+
+        <!-- Coder node -->
+        <rect class="node-box" x="50" y="50" width="120" height="60"/>
+        <text x="110" y="76" text-anchor="middle" font-size="13" font-weight="600">CODER</text>
+        <text class="label-small" x="110" y="96" text-anchor="middle">BudgetGate</text>
+
+        <!-- Parser node -->
+        <rect class="node-box" x="290" y="50" width="120" height="60"/>
+        <text x="350" y="76" text-anchor="middle" font-size="13" font-weight="600">PARSER</text>
+        <text class="label-small" x="350" y="96" text-anchor="middle">XML Anchor</text>
+
+        <!-- Linter node -->
+        <rect class="node-box" x="530" y="50" width="120" height="60"/>
+        <text x="590" y="76" text-anchor="middle" font-size="13" font-weight="600">LINTER</text>
+        <text class="label-small" x="590" y="96" text-anchor="middle">AST Check</text>
+
+        <!-- Sandbox node -->
+        <rect class="node-box" x="770" y="50" width="120" height="60"/>
+        <text x="830" y="76" text-anchor="middle" font-size="13" font-weight="600">SANDBOX</text>
+        <text class="label-small" x="830" y="96" text-anchor="middle">Docker</text>
+
+        <!-- Arrows on main path -->
+        <polygon points="286,76 292,80 286,84" fill="var(--blue)"/>
+        <polygon points="526,76 532,80 526,84" fill="var(--blue)"/>
+        <polygon points="766,76 772,80 766,84" fill="var(--blue)"/>
+        <polygon points="956,76 962,80 956,84" fill="var(--blue)"/>
+
+        <!-- Loop-back labels -->
+        <text class="label-tiny" x="225" y="195">parse_error</text>
+        <text class="label-tiny" x="345" y="235">lint_error</text>
+        <text class="label-tiny" x="465" y="275">exit_code != 0</text>
+
+        <!-- Return arrows -->
+        <polygon points="104,114 100,108 96,114" fill="var(--mauve-light)"/>
+
+        <!-- Success node -->
+        <rect class="node-box" x="970" y="55" width="80" height="50" style="stroke:var(--blue)"/>
+        <text x="1010" y="78" text-anchor="middle" font-size="12" font-weight="600" fill="var(--blue)">SUCCESS</text>
+        <text class="label-tiny" x="1010" y="94" text-anchor="middle" style="fill:var(--blue)">exit_code = 0</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- GEODE Pipeline -->
+<section id="pipeline" style="background:rgba(231,230,247,0.02)">
+  <div class="container">
+    <div class="section-label reveal">GEODE Reference Model</div>
+    <div class="section-title reveal">5-Layer Verification Pipeline</div>
+    <p class="section-desc reveal">
+      에이전트의 모든 출력은 5개의 결정론적 관문을 순차적으로 통과해야 합니다.
+      각 계층은 독립적 검증 책임을 가집니다.
+    </p>
+
+    <div class="pipeline">
+      <div class="pipeline-layer reveal">
+        <span class="layer-num">L1</span>
+        <span class="layer-name text-blue">Atomic XML Matching</span>
+        <span class="layer-desc">LLM 출력이 &lt;think&gt;/&lt;action&gt; 구조를 준수하는지 검증</span>
+        <span class="layer-impl">parse_llm_output()</span>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-layer reveal reveal-delay-1">
+        <span class="layer-num">L2</span>
+        <span class="layer-name text-pink">Syntactic Broom</span>
+        <span class="layer-desc">AST 파싱으로 문법 오류를 샌드박스 전송 전 사전 차단</span>
+        <span class="layer-impl">lint_code()</span>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-layer reveal reveal-delay-2">
+        <span class="layer-num">L3</span>
+        <span class="layer-name text-mauve">Symbolic Ripple</span>
+        <span class="layer-desc">모듈 변경의 하위 의존성 파급 효과 자동 추적</span>
+        <span class="layer-impl" style="opacity:.4">Phase 2+</span>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-layer reveal reveal-delay-3">
+        <span class="layer-num">L4</span>
+        <span class="layer-name text-lavender">Self-Healing</span>
+        <span class="layer-desc">실행 오류 시 stderr + 원본 목표로 자동 교정 루프</span>
+        <span class="layer-impl">conditional_edges</span>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-layer reveal">
+        <span class="layer-num">L5</span>
+        <span class="layer-name text-blue">Runtime Smoke Test</span>
+        <span class="layer-desc">격리 컨테이너에서 제한 시간 내 동작 물리적 증명</span>
+        <span class="layer-impl">SandboxExecutor</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Development Timeline -->
+<section id="development">
+  <div class="container">
+    <div class="section-label reveal">Development Track</div>
+    <div class="section-title reveal">Phase 1 Implementation</div>
+    <p class="section-desc reveal">
+      방어막을 먼저 구축하고, 그 안에서 자율 루프를 조립하는 순서로 진행했습니다.
+      통제 없는 자율성은 재앙이기 때문입니다.
+    </p>
+
+    <div class="timeline">
+      <!-- Task 1 -->
+      <div class="timeline-item active reveal">
+        <div class="task-tag">Task 1</div>
+        <h3>Budget Gate & Circuit Breaker</h3>
+        <p>
+          LLM API 통신부 최상단에 재무적 방어선 구축.
+          세션별 토큰/비용 이중 추적, 한도 초과 시 회로 차단기가 영구적으로 트립되어
+          모든 후속 API 호출을 물리적으로 차단합니다.
+        </p>
+        <div class="code-block" style="margin-bottom:1rem">
+          <div class="code-block-header">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span>budget/tracker.py</span>
+          </div>
+<pre><span class="keyword">if</span> self.is_exceeded:
+    self._tripped = <span class="keyword">True</span>
+    <span class="keyword">raise</span> <span class="func">BudgetExceededException</span>(
+        <span class="string">f"Budget exceeded: {self.total_tokens} tokens"</span>
+    )</pre>
+        </div>
+        <span class="status">9 TESTS PASSED</span>
+      </div>
+
+      <!-- Task 2 -->
+      <div class="timeline-item active reveal">
+        <div class="task-tag">Task 2</div>
+        <h3>Deterministic Sandbox</h3>
+        <p>
+          에이전트 생성 코드를 호스트 OS에서 절대 실행하지 않는 격리 환경.
+          일회성 Docker 컨테이너에서 메모리 제한, 네트워크 차단, 타임아웃을 강제하고
+          실행 후 즉시 파괴합니다.
+        </p>
+        <div class="code-block" style="margin-bottom:1rem">
+          <div class="code-block-header">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span>sandbox/executor.py</span>
+          </div>
+<pre>container = self._client.containers.<span class="func">run</span>(
+    image=image,
+    command=[<span class="string">"python"</span>, <span class="string">"-c"</span>, code],
+    mem_limit=<span class="string">f"{mem_limit}m"</span>,
+    network_disabled=<span class="keyword">True</span>,
+    detach=<span class="keyword">True</span>,
+)</pre>
+        </div>
+        <span class="status">21 TESTS PASSED</span>
+      </div>
+
+      <!-- Task 3 -->
+      <div class="timeline-item active reveal">
+        <div class="task-tag">Task 3</div>
+        <h3>Self-Healing Loop</h3>
+        <p>
+          Task 1, 2의 인프라 위에 조립된 LangGraph 상태 머신.
+          코드 생성 &rarr; XML 파싱 &rarr; AST 린트 &rarr; 샌드박스 실행의 파이프라인에서
+          실패 시 에러 트레이스를 피드백으로 자동 재시도합니다. 최대 재시도 횟수로 무한 루프를 방지합니다.
+        </p>
+        <div class="code-block" style="margin-bottom:1rem">
+          <div class="code-block-header">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span>graph/graph.py</span>
+          </div>
+<pre>graph.<span class="func">set_entry_point</span>(<span class="string">"coder"</span>)
+graph.<span class="func">add_edge</span>(<span class="string">"coder"</span>, <span class="string">"parser"</span>)
+graph.<span class="func">add_conditional_edges</span>(<span class="string">"parser"</span>, route_after_parse)
+graph.<span class="func">add_conditional_edges</span>(<span class="string">"linter"</span>, route_after_lint)
+graph.<span class="func">add_conditional_edges</span>(<span class="string">"sandbox"</span>, route_after_sandbox)</pre>
+        </div>
+        <span class="status">17 TESTS PASSED</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Module Cards -->
+<section id="modules" style="background:rgba(231,230,247,0.02)">
+  <div class="container">
+    <div class="section-label reveal">Module Architecture</div>
+    <div class="section-title reveal">Three Pillars of Phase 1</div>
+    <p class="section-desc reveal">각 모듈은 독립 프로토콜 기반으로 설계되어 테스트 시 Mock으로 완전 교체 가능합니다.</p>
+
+    <div class="card-grid">
+      <div class="card reveal">
+        <div class="card-icon budget">$</div>
+        <h3>kappa.budget</h3>
+        <p>
+          <strong class="text-blue">BudgetTracker</strong> &mdash; 스레드 안전 토큰/비용 추적. RLock 기반.<br>
+          <strong class="text-blue">BudgetGate</strong> &mdash; LLM 호출 래퍼. pre_check &rarr; call &rarr; record_usage.<br>
+          <strong class="text-blue">LLMProvider</strong> &mdash; Protocol. AnthropicProvider 구현체 제공.
+        </p>
+      </div>
+      <div class="card reveal reveal-delay-1">
+        <div class="card-icon sandbox">S</div>
+        <h3>kappa.sandbox</h3>
+        <p>
+          <strong class="text-pink">SandboxExecutor</strong> &mdash; 코드 문자열 &rarr; Docker 컨테이너 실행.<br>
+          <strong class="text-pink">ContainerRuntime</strong> &mdash; Protocol. DockerRuntime 구현체.<br>
+          <strong class="text-pink">SandboxResult</strong> &mdash; exit_code, stdout, stderr, timed_out.
+        </p>
+      </div>
+      <div class="card reveal reveal-delay-2">
+        <div class="card-icon graph">G</div>
+        <h3>kappa.graph</h3>
+        <p>
+          <strong class="text-mauve">SelfHealingGraph</strong> &mdash; LangGraph StateGraph 조립.<br>
+          <strong class="text-mauve">AgentState</strong> &mdash; TypedDict. 그래프 상태 정의.<br>
+          <strong class="text-mauve">nodes.py</strong> &mdash; parse_llm_output, lint_code, build_messages.
+        </p>
+      </div>
+    </div>
+
+    <!-- Relationship diagram -->
+    <div class="reveal" style="margin-top:3rem">
+      <div class="code-block">
+        <div class="code-block-header">
+          <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+          <span>Module Dependency</span>
+        </div>
+<pre><span class="comment"># Task 1: 돈을 지킨다 (재무 방어선)</span>
+<span class="func">BudgetGate</span> &larr; <span class="func">SelfHealingGraph</span>._coder_node
+
+<span class="comment"># Task 2: 서버를 지킨다 (인프라 방어선)</span>
+<span class="func">SandboxExecutor</span> &larr; <span class="func">SelfHealingGraph</span>._sandbox_node
+
+<span class="comment"># Task 3: 두 방어선 안에서 스스로 문제를 해결한다</span>
+<span class="func">SelfHealingGraph</span>.<span class="func">run</span>(<span class="string">"goal"</span>) &rarr; <span class="keyword">SUCCESS</span> | <span class="keyword">FAILED</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Test Results -->
+<section id="tests">
+  <div class="container">
+    <div class="section-label reveal">Verification</div>
+    <div class="section-title reveal">Test Results</div>
+    <p class="section-desc reveal">Phase 1의 모든 작업은 자동화된 테스트로 동작을 증명합니다.</p>
+
+    <div class="test-grid">
+      <div class="test-card reveal">
+        <div class="count" data-target="9">0</div>
+        <div class="label">Budget Gate</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+      <div class="test-card reveal reveal-delay-1">
+        <div class="count" data-target="13">0</div>
+        <div class="label">Sandbox (Unit)</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+      <div class="test-card reveal reveal-delay-2">
+        <div class="count" data-target="8">0</div>
+        <div class="label">Sandbox (Docker)</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+      <div class="test-card reveal reveal-delay-3">
+        <div class="count" data-target="17">0</div>
+        <div class="label">Self-Healing</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:3rem" class="reveal">
+      <div style="font-family:var(--font-mono);font-size:3rem;font-weight:700;color:var(--lavender)">
+        47 / 47
+      </div>
+      <div style="font-size:.85rem;color:var(--text-muted);margin-top:.5rem">ALL TESTS PASSING</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="https://github.com/KIMMUSIC/kappa" target="_blank">GitHub</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#development">Development</a>
+    </div>
+    <p>Kappa v0.1 &mdash; Phase 1: Harness Infrastructure</p>
+    <p style="margin-top:.5rem">Built with deterministic guardrails.</p>
+  </div>
+</footer>
+
+<script>
+// ── Scroll Reveal ──────────────────────────────────────
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// ── Animated Counters ──────────────────────────────────
+function animateCounter(el, target) {
+  let current = 0;
+  const step = Math.max(1, Math.floor(target / 30));
+  const interval = setInterval(() => {
+    current += step;
+    if (current >= target) {
+      current = target;
+      clearInterval(interval);
+    }
+    el.textContent = current;
+  }, 40);
+}
+
+const counterObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting && !entry.target.dataset.animated) {
+      entry.target.dataset.animated = 'true';
+      const target = parseInt(entry.target.dataset.target || entry.target.textContent);
+      animateCounter(entry.target, target);
+    }
+  });
+}, { threshold: 0.5 });
+
+document.querySelectorAll('[data-target]').forEach(el => counterObserver.observe(el));
+
+// ── Test Bar Animation ─────────────────────────────────
+const barObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const fill = entry.target.querySelector('.test-bar-fill');
+      if (fill && !fill.dataset.animated) {
+        fill.dataset.animated = 'true';
+        setTimeout(() => {
+          fill.style.width = fill.dataset.width + '%';
+        }, 200);
+      }
+    }
+  });
+}, { threshold: 0.5 });
+
+document.querySelectorAll('.test-card').forEach(el => barObserver.observe(el));
+
+// ── Nav Hide on Scroll Down ────────────────────────────
+let lastScroll = 0;
+const nav = document.querySelector('nav');
+window.addEventListener('scroll', () => {
+  const current = window.scrollY;
+  if (current > lastScroll && current > 100) {
+    nav.style.transform = 'translateY(-100%)';
+  } else {
+    nav.style.transform = 'translateY(0)';
+  }
+  lastScroll = current;
+}, { passive: true });
+</script>
+</body>
+</html>
