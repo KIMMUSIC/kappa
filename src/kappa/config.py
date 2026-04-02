@@ -32,6 +32,23 @@ class SandboxConfig:
 
 
 @dataclass(frozen=True)
+class MemoryConfig:
+    """VFS-based long-term memory configuration."""
+
+    workspace_root: str = os.getenv("MEMORY_WORKSPACE_ROOT", ".kappa_workspace")
+    auto_inject_files: tuple[str, ...] = ("LEARNINGS.md",)
+
+
+@dataclass(frozen=True)
+class SemanticConfig:
+    """Semantic loop detection thresholds."""
+
+    window_size: int = 5
+    similarity_threshold: float = 0.85
+    min_samples: int = 3
+
+
+@dataclass(frozen=True)
 class AgentConfig:
     """Top-level agent configuration."""
 
@@ -39,3 +56,5 @@ class AgentConfig:
     max_self_heal_retries: int = int(os.getenv("MAX_SELF_HEAL_RETRIES", "3"))
     budget: BudgetConfig = field(default_factory=BudgetConfig)
     sandbox: SandboxConfig = field(default_factory=SandboxConfig)
+    memory: MemoryConfig = field(default_factory=MemoryConfig)
+    semantic: SemanticConfig = field(default_factory=SemanticConfig)

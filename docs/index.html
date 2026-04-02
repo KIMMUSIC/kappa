@@ -250,7 +250,7 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
 <!-- Nav -->
 <nav>
   <div class="container">
-    <div class="logo">KAPPA <span>v0.1</span></div>
+    <div class="logo">KAPPA <span>v0.2</span></div>
     <ul>
       <li><a href="#architecture">Architecture</a></li>
       <li><a href="#pipeline">Pipeline</a></li>
@@ -264,19 +264,19 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
 <!-- Hero -->
 <section class="hero">
   <div class="hero-content">
-    <div class="version reveal">PHASE 1 &mdash; HARNESS INFRASTRUCTURE</div>
+    <div class="version reveal">PHASE 2 &mdash; COGNITIVE AUTONOMY</div>
     <h1 class="reveal reveal-delay-1">KAPPA</h1>
     <p class="subtitle reveal reveal-delay-2">
       LLM의 확률적 출력을 결정론적으로 통제하는 자율 수행 에이전트 하네스.
-      예산 방어, 샌드박스 격리, 자가 치유 루프로 구성된 3중 안전망.
+      예산 방어, 샌드박스 격리, 자가 치유 루프에 장기 기억, 도구 호출, 의미론적 방어를 이식.
     </p>
     <div class="metrics reveal reveal-delay-3">
       <div class="metric">
-        <div class="metric-value" data-target="47">0</div>
+        <div class="metric-value" data-target="147">0</div>
         <div class="metric-label">Tests Passing</div>
       </div>
       <div class="metric">
-        <div class="metric-value" data-target="3">0</div>
+        <div class="metric-value" data-target="6">0</div>
         <div class="metric-label">Safety Layers</div>
       </div>
       <div class="metric">
@@ -294,24 +294,30 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
 <section id="architecture">
   <div class="container">
     <div class="section-label reveal">System Overview</div>
-    <div class="section-title reveal">Self-Healing State Machine</div>
+    <div class="section-title reveal">Self-Healing State Machine V2</div>
     <p class="section-desc reveal">
-      에이전트의 모든 코드 생성은 4개 노드와 3개 조건부 엣지로 구성된
-      LangGraph 상태 머신을 통과합니다. 실패 시 자동으로 원인을 피드백하여 수정을 시도합니다.
+      5개 노드와 4개 조건부 엣지로 구성된 LangGraph 상태 머신.
+      코드 실행과 도구 호출을 분기하고, 의미론적 감지기가 반복을 조기 차단합니다.
     </p>
 
-    <!-- Flow Diagram SVG -->
+    <!-- Flow Diagram SVG (V2) -->
     <div class="flow-diagram reveal">
-      <svg viewBox="0 0 1060 320" xmlns="http://www.w3.org/2000/svg">
-        <!-- Connection paths -->
+      <svg viewBox="0 0 1060 360" xmlns="http://www.w3.org/2000/svg">
+        <!-- Main path -->
         <path class="flow-path-active" d="M 170 80 L 290 80"/>
         <path class="flow-path-active" d="M 410 80 L 530 80"/>
         <path class="flow-path-active" d="M 650 80 L 770 80"/>
         <path class="flow-path-active" d="M 890 80 L 960 80"/>
+        <!-- Tool branch from parser -->
+        <path class="flow-path-active" d="M 350 110 L 350 170 L 530 170"/>
+        <!-- Tool success to END -->
+        <path class="flow-path-active" d="M 650 170 L 960 170 L 960 90"/>
         <!-- Heal-back paths -->
-        <path class="flow-path" d="M 350 110 L 350 200 L 100 200 L 100 110"/>
-        <path class="flow-path" d="M 590 110 L 590 240 L 100 240 L 100 110"/>
-        <path class="flow-path" d="M 830 110 L 830 280 L 100 280 L 100 110"/>
+        <path class="flow-path" d="M 350 110 L 350 230 L 100 230 L 100 110"/>
+        <path class="flow-path" d="M 590 110 L 590 265 L 100 265 L 100 110"/>
+        <path class="flow-path" d="M 830 110 L 830 300 L 100 300 L 100 110"/>
+        <!-- Tool error heal-back -->
+        <path class="flow-path" d="M 590 200 L 590 335 L 100 335 L 100 110"/>
 
         <!-- Coder node -->
         <rect class="node-box" x="50" y="50" width="120" height="60"/>
@@ -321,7 +327,7 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
         <!-- Parser node -->
         <rect class="node-box" x="290" y="50" width="120" height="60"/>
         <text x="350" y="76" text-anchor="middle" font-size="13" font-weight="600">PARSER</text>
-        <text class="label-small" x="350" y="96" text-anchor="middle">XML Anchor</text>
+        <text class="label-small" x="350" y="96" text-anchor="middle">XML + Semantic</text>
 
         <!-- Linter node -->
         <rect class="node-box" x="530" y="50" width="120" height="60"/>
@@ -333,16 +339,27 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
         <text x="830" y="76" text-anchor="middle" font-size="13" font-weight="600">SANDBOX</text>
         <text class="label-small" x="830" y="96" text-anchor="middle">Docker</text>
 
-        <!-- Arrows on main path -->
+        <!-- Tool node (Phase 2) -->
+        <rect class="node-box" x="530" y="140" width="120" height="60" style="stroke:var(--pink)"/>
+        <text x="590" y="166" text-anchor="middle" font-size="13" font-weight="600" fill="var(--pink)">TOOL</text>
+        <text class="label-small" x="590" y="186" text-anchor="middle">Registry</text>
+
+        <!-- Main path arrows -->
         <polygon points="286,76 292,80 286,84" fill="var(--blue)"/>
         <polygon points="526,76 532,80 526,84" fill="var(--blue)"/>
         <polygon points="766,76 772,80 766,84" fill="var(--blue)"/>
         <polygon points="956,76 962,80 956,84" fill="var(--blue)"/>
+        <!-- Tool branch arrow -->
+        <polygon points="526,166 532,170 526,174" fill="var(--pink)"/>
 
         <!-- Loop-back labels -->
-        <text class="label-tiny" x="225" y="195">parse_error</text>
-        <text class="label-tiny" x="345" y="235">lint_error</text>
-        <text class="label-tiny" x="465" y="275">exit_code != 0</text>
+        <text class="label-tiny" x="225" y="225">parse_error</text>
+        <text class="label-tiny" x="345" y="260">lint_error</text>
+        <text class="label-tiny" x="465" y="295">exit_code != 0</text>
+        <text class="label-tiny" x="465" y="330">tool_error</text>
+        <!-- Branch label -->
+        <text class="label-tiny" x="380" y="145">&lt;tool_call&gt;</text>
+        <text class="label-tiny" x="440" y="75">&lt;action&gt;</text>
 
         <!-- Return arrows -->
         <polygon points="104,114 100,108 96,114" fill="var(--mauve-light)"/>
@@ -370,7 +387,7 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
       <div class="pipeline-layer reveal">
         <span class="layer-num">L1</span>
         <span class="layer-name text-blue">Atomic XML Matching</span>
-        <span class="layer-desc">LLM 출력이 &lt;think&gt;/&lt;action&gt; 구조를 준수하는지 검증</span>
+        <span class="layer-desc">LLM 출력이 &lt;think&gt;/&lt;action&gt;/&lt;tool_call&gt; 구조를 준수하는지 검증</span>
         <span class="layer-impl">parse_llm_output()</span>
       </div>
       <div class="pipeline-connector"></div>
@@ -383,9 +400,9 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
       <div class="pipeline-connector"></div>
       <div class="pipeline-layer reveal reveal-delay-2">
         <span class="layer-num">L3</span>
-        <span class="layer-name text-mauve">Symbolic Ripple</span>
-        <span class="layer-desc">모듈 변경의 하위 의존성 파급 효과 자동 추적</span>
-        <span class="layer-impl" style="opacity:.4">Phase 2+</span>
+        <span class="layer-name text-mauve">Semantic Defense</span>
+        <span class="layer-desc">Jaccard 유사도 기반 의미론적 반복 감지 및 조기 차단</span>
+        <span class="layer-impl">SemanticLoopDetector</span>
       </div>
       <div class="pipeline-connector"></div>
       <div class="pipeline-layer reveal reveal-delay-3">
@@ -409,9 +426,9 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
 <section id="development">
   <div class="container">
     <div class="section-label reveal">Development Track</div>
-    <div class="section-title reveal">Phase 1 Implementation</div>
+    <div class="section-title reveal">Implementation Timeline</div>
     <p class="section-desc reveal">
-      방어막을 먼저 구축하고, 그 안에서 자율 루프를 조립하는 순서로 진행했습니다.
+      Phase 1에서 방어막을 구축하고, Phase 2에서 인지적 자율성을 이식했습니다.
       통제 없는 자율성은 재앙이기 때문입니다.
     </p>
 
@@ -486,6 +503,107 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"sand
         </div>
         <span class="status">17 TESTS PASSED</span>
       </div>
+
+      <!-- Phase 2 -->
+      <div style="margin-top:5rem;margin-bottom:3rem" class="reveal">
+        <div class="section-label">Phase 2</div>
+        <div class="section-title" style="font-size:1.3rem">Cognitive Autonomy</div>
+      </div>
+
+      <!-- Task 4 (P2-T1) -->
+      <div class="timeline-item active reveal">
+        <div class="task-tag">Task 4 &mdash; VFS Memory</div>
+        <h3>Virtual File System Long-Term Memory</h3>
+        <p>
+          에이전트 전용 격리 작업 디렉토리(<code>.kappa_workspace/</code>)에서
+          학습 내용을 기록하고 검색하는 VFSManager.
+          경로 이탈 공격(<code>../</code>)을 원천 차단하며, 핵심 파일은 시스템 프롬프트에 자동 주입됩니다.
+        </p>
+        <div class="code-block" style="margin-bottom:1rem">
+          <div class="code-block-header">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span>memory/vfs.py</span>
+          </div>
+<pre>target = (self._root / relative).<span class="func">resolve</span>()
+<span class="keyword">try</span>:
+    target.<span class="func">relative_to</span>(self._root)
+<span class="keyword">except</span> <span class="func">ValueError</span>:
+    <span class="keyword">raise</span> <span class="func">ValueError</span>(<span class="string">"Path traversal blocked"</span>)</pre>
+        </div>
+        <span class="status">34 TESTS PASSED</span>
+      </div>
+
+      <!-- Task 5 (P2-T2) -->
+      <div class="timeline-item active reveal">
+        <div class="task-tag">Task 5 &mdash; Tool Registry</div>
+        <h3>MCP Tool Registry & Bridge</h3>
+        <p>
+          BaseTool 프로토콜 기반 플러그 앤 플레이 도구 레지스트리.
+          <code>read_memory</code>, <code>write_memory</code> 시스템 도구를 기본 제공하며,
+          모든 도구 실행 비용은 BudgetTracker를 경유하여 추적됩니다.
+        </p>
+        <div class="code-block" style="margin-bottom:1rem">
+          <div class="code-block-header">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span>tools/registry.py</span>
+          </div>
+<pre><span class="keyword">class</span> <span class="func">ToolRegistry</span>:
+    <span class="keyword">def</span> <span class="func">execute</span>(self, name, **kwargs):
+        tool = self.<span class="func">get</span>(name)
+        <span class="keyword">if</span> self._tracker:
+            self._tracker.<span class="func">record_usage</span>(
+                prompt_tokens=self._cost_per_tool_call,
+                completion_tokens=<span class="num">0</span>)
+        <span class="keyword">return</span> tool.<span class="func">execute</span>(**kwargs)</pre>
+        </div>
+        <span class="status">30 TESTS PASSED</span>
+      </div>
+
+      <!-- Task 6 (P2-T3) -->
+      <div class="timeline-item active reveal">
+        <div class="task-tag">Task 6 &mdash; Semantic Defense</div>
+        <h3>Semantic Infinite Loop Detector</h3>
+        <p>
+          최근 N개의 <code>&lt;think&gt;</code> 내용과 도구 호출 인자의
+          Jaccard 유사도를 슬라이딩 윈도우로 계산.
+          동일한 헛발질이 임계치 이상 반복되면 <code>SemanticLoopException</code>을 발생시켜
+          <code>max_attempts</code> 도달 전에 조기 차단합니다.
+        </p>
+        <div class="code-block" style="margin-bottom:1rem">
+          <div class="code-block-header">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span>defense/semantic.py</span>
+          </div>
+<pre>avg_sim = self.<span class="func">_average_pairwise_similarity</span>()
+<span class="keyword">if</span> avg_sim >= self._threshold:
+    <span class="keyword">raise</span> <span class="func">SemanticLoopException</span>(
+        <span class="string">f"Semantic loop: {avg_sim:.2f} >= {self._threshold}"</span>
+    )</pre>
+        </div>
+        <span class="status">24 TESTS PASSED</span>
+      </div>
+
+      <!-- Task 7 (P2-T4) -->
+      <div class="timeline-item active reveal">
+        <div class="task-tag">Task 7 &mdash; Graph V2</div>
+        <h3>Self-Healing Loop V2: Tool Branching</h3>
+        <p>
+          파서가 <code>&lt;action&gt;</code>과 <code>&lt;tool_call&gt;</code>을 분기하여
+          코드 실행(Sandbox)과 도구 호출(Tool)을 조건부 엣지로 분리.
+          VFS 메모리 컨텍스트 자동 주입, 의미론적 감지기 통합으로 Graph V2 완성.
+        </p>
+        <div class="code-block" style="margin-bottom:1rem">
+          <div class="code-block-header">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span>graph/graph.py (V2)</span>
+          </div>
+<pre>graph.<span class="func">add_node</span>(<span class="string">"tool"</span>, self._tool_node)
+graph.<span class="func">add_conditional_edges</span>(<span class="string">"parser"</span>, route_after_parse)
+<span class="comment"># parser → linter (code) | tool (tool_call) | coder (error)</span>
+graph.<span class="func">add_conditional_edges</span>(<span class="string">"tool"</span>, route_after_tool)</pre>
+        </div>
+        <span class="status">20 TESTS PASSED</span>
+      </div>
     </div>
   </div>
 </section>
@@ -494,7 +612,7 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"sand
 <section id="modules" style="background:rgba(231,230,247,0.02)">
   <div class="container">
     <div class="section-label reveal">Module Architecture</div>
-    <div class="section-title reveal">Three Pillars of Phase 1</div>
+    <div class="section-title reveal">Six Pillars of Kappa</div>
     <p class="section-desc reveal">각 모듈은 독립 프로토콜 기반으로 설계되어 테스트 시 Mock으로 완전 교체 가능합니다.</p>
 
     <div class="card-grid">
@@ -520,9 +638,36 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"sand
         <div class="card-icon graph">G</div>
         <h3>kappa.graph</h3>
         <p>
-          <strong class="text-mauve">SelfHealingGraph</strong> &mdash; LangGraph StateGraph 조립.<br>
-          <strong class="text-mauve">AgentState</strong> &mdash; TypedDict. 그래프 상태 정의.<br>
-          <strong class="text-mauve">nodes.py</strong> &mdash; parse_llm_output, lint_code, build_messages.
+          <strong class="text-mauve">SelfHealingGraph V2</strong> &mdash; 5-node LangGraph StateGraph.<br>
+          <strong class="text-mauve">AgentState</strong> &mdash; TypedDict + tool_calls, memory_context.<br>
+          <strong class="text-mauve">nodes.py</strong> &mdash; &lt;action&gt;/&lt;tool_call&gt; 분기 파서.
+        </p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon" style="background:rgba(198,210,237,0.1);color:var(--blue)">M</div>
+        <h3>kappa.memory</h3>
+        <p>
+          <strong class="text-blue">VFSManager</strong> &mdash; 격리 작업공간 파일 시스템.<br>
+          <strong class="text-blue">MemoryConfig</strong> &mdash; workspace_root, auto_inject_files.<br>
+          <strong class="text-blue">Path Traversal</strong> &mdash; ../ 공격 원천 차단.
+        </p>
+      </div>
+      <div class="card reveal reveal-delay-1">
+        <div class="card-icon" style="background:rgba(227,208,216,0.1);color:var(--pink)">T</div>
+        <h3>kappa.tools</h3>
+        <p>
+          <strong class="text-pink">ToolRegistry</strong> &mdash; 도구 등록/디스패치 + 예산 연동.<br>
+          <strong class="text-pink">BaseTool</strong> &mdash; Protocol. 플러그 앤 플레이 인터페이스.<br>
+          <strong class="text-pink">Builtins</strong> &mdash; read_memory, write_memory 시스템 도구.
+        </p>
+      </div>
+      <div class="card reveal reveal-delay-2">
+        <div class="card-icon" style="background:rgba(130,112,129,0.15);color:var(--mauve-light)">D</div>
+        <h3>kappa.defense</h3>
+        <p>
+          <strong class="text-mauve">SemanticLoopDetector</strong> &mdash; Jaccard 유사도 감지기.<br>
+          <strong class="text-mauve">SemanticConfig</strong> &mdash; window_size, threshold, min_samples.<br>
+          <strong class="text-mauve">SemanticLoopException</strong> &mdash; 조기 차단 예외.
         </p>
       </div>
     </div>
@@ -534,13 +679,16 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"sand
           <div class="dot"></div><div class="dot"></div><div class="dot"></div>
           <span>Module Dependency</span>
         </div>
-<pre><span class="comment"># Task 1: 돈을 지킨다 (재무 방어선)</span>
-<span class="func">BudgetGate</span> &larr; <span class="func">SelfHealingGraph</span>._coder_node
-
-<span class="comment"># Task 2: 서버를 지킨다 (인프라 방어선)</span>
+<pre><span class="comment"># Phase 1: 방어선 구축</span>
+<span class="func">BudgetGate</span>      &larr; <span class="func">SelfHealingGraph</span>._coder_node
 <span class="func">SandboxExecutor</span> &larr; <span class="func">SelfHealingGraph</span>._sandbox_node
 
-<span class="comment"># Task 3: 두 방어선 안에서 스스로 문제를 해결한다</span>
+<span class="comment"># Phase 2: 인지적 자율성 이식</span>
+<span class="func">VFSManager</span>      &larr; <span class="func">ReadMemoryTool</span> / <span class="func">WriteMemoryTool</span>
+<span class="func">ToolRegistry</span>    &larr; <span class="func">SelfHealingGraph</span>._tool_node
+<span class="func">SemanticDetector</span> &larr; <span class="func">SelfHealingGraph</span>._parser_node
+
+<span class="comment"># 통합: 6개 모듈이 하나의 루프로 동작</span>
 <span class="func">SelfHealingGraph</span>.<span class="func">run</span>(<span class="string">"goal"</span>) &rarr; <span class="keyword">SUCCESS</span> | <span class="keyword">FAILED</span></pre>
       </div>
     </div>
@@ -552,8 +700,9 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"sand
   <div class="container">
     <div class="section-label reveal">Verification</div>
     <div class="section-title reveal">Test Results</div>
-    <p class="section-desc reveal">Phase 1의 모든 작업은 자동화된 테스트로 동작을 증명합니다.</p>
+    <p class="section-desc reveal">Phase 1 &amp; 2의 모든 작업은 자동화된 테스트로 동작을 증명합니다.</p>
 
+    <div class="section-label reveal" style="margin-top:1rem;margin-bottom:1rem">Phase 1</div>
     <div class="test-grid">
       <div class="test-card reveal">
         <div class="count" data-target="9">0</div>
@@ -561,12 +710,12 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"sand
         <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
       </div>
       <div class="test-card reveal reveal-delay-1">
-        <div class="count" data-target="13">0</div>
+        <div class="count" data-target="12">0</div>
         <div class="label">Sandbox (Unit)</div>
         <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
       </div>
       <div class="test-card reveal reveal-delay-2">
-        <div class="count" data-target="8">0</div>
+        <div class="count" data-target="10">0</div>
         <div class="label">Sandbox (Docker)</div>
         <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
       </div>
@@ -577,9 +726,33 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"sand
       </div>
     </div>
 
+    <div class="section-label reveal" style="margin-top:2.5rem;margin-bottom:1rem">Phase 2</div>
+    <div class="test-grid">
+      <div class="test-card reveal">
+        <div class="count" data-target="34">0</div>
+        <div class="label">VFS Memory</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+      <div class="test-card reveal reveal-delay-1">
+        <div class="count" data-target="30">0</div>
+        <div class="label">Tool Registry</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+      <div class="test-card reveal reveal-delay-2">
+        <div class="count" data-target="24">0</div>
+        <div class="label">Semantic Defense</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+      <div class="test-card reveal reveal-delay-3">
+        <div class="count" data-target="20">0</div>
+        <div class="label">Graph V2</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+    </div>
+
     <div style="text-align:center;margin-top:3rem" class="reveal">
       <div style="font-family:var(--font-mono);font-size:3rem;font-weight:700;color:var(--lavender)">
-        47 / 47
+        147 / 147
       </div>
       <div style="font-size:.85rem;color:var(--text-muted);margin-top:.5rem">ALL TESTS PASSING</div>
     </div>
@@ -594,8 +767,8 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"sand
       <a href="#architecture">Architecture</a>
       <a href="#development">Development</a>
     </div>
-    <p>Kappa v0.1 &mdash; Phase 1: Harness Infrastructure</p>
-    <p style="margin-top:.5rem">Built with deterministic guardrails.</p>
+    <p>Kappa v0.2 &mdash; Phase 2: Cognitive Autonomy</p>
+    <p style="margin-top:.5rem">Built with deterministic guardrails &amp; semantic defense.</p>
   </div>
 </footer>
 

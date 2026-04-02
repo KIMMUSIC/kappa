@@ -26,3 +26,19 @@ class ParsingError(KappaError):
 
 class SandboxExecutionError(KappaError):
     """Raised when the sandbox environment itself fails (not the user code)."""
+
+
+class ToolExecutionError(KappaError):
+    """Raised when tool infrastructure fails (not a user-facing tool error)."""
+
+
+class SemanticLoopException(KappaError):
+    """Raised when the semantic loop detector identifies repetitive behaviour.
+
+    This triggers early termination before ``max_attempts`` is reached,
+    saving budget by preventing the agent from repeating the same mistake.
+    """
+
+    def __init__(self, message: str, *, similarity: float = 0.0):
+        self.similarity = similarity
+        super().__init__(message)

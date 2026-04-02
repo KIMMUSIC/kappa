@@ -17,6 +17,8 @@ class AgentState(TypedDict):
         max_attempts:   Hard limit — graph stops after this many coder invocations.
         error_history:  Accumulated error messages across all retries.
         status:         Current loop status — drives conditional routing.
+        tool_calls:     Parsed tool call dicts from <tool_call> blocks.
+        memory_context: VFS content injected into the system prompt.
     """
 
     goal: str
@@ -26,4 +28,6 @@ class AgentState(TypedDict):
     attempt: int
     max_attempts: int
     error_history: list[str]
-    status: str  # running | success | parse_error | lint_error | runtime_error
+    status: str  # running | success | parse_error | lint_error | runtime_error | tool_call | tool_error
+    tool_calls: list[dict]
+    memory_context: str
