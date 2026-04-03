@@ -205,6 +205,81 @@ section{position:relative;z-index:1;padding:8rem 0}
 .test-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--blue),var(--lavender));
   width:0;transition:width 1.5s cubic-bezier(.16,1,.3,1)}
 
+/* ── Orchestrator Animated Flow ────────────────────────── */
+.orch-flow{position:relative;max-width:900px;margin:0 auto;padding:2rem 0}
+.orch-row{display:flex;align-items:center;justify-content:center;gap:0;position:relative}
+.orch-node{position:relative;min-width:140px;text-align:center;padding:1.2rem 1rem;
+  border:1.5px solid var(--border);border-radius:12px;background:var(--bg-card);
+  transition:all .5s;z-index:2}
+.orch-node .node-icon{font-size:1.4rem;margin-bottom:.4rem}
+.orch-node .node-name{font-family:var(--font-mono);font-size:.85rem;font-weight:600;color:var(--lavender)}
+.orch-node .node-desc{font-size:.7rem;color:var(--text-muted);margin-top:.25rem;line-height:1.4}
+.orch-node.active{border-color:var(--blue);box-shadow:0 0 24px rgba(198,210,237,0.15)}
+.orch-node.active .node-name{color:#fff}
+.orch-arrow{width:50px;height:2px;background:var(--border);position:relative;flex-shrink:0}
+.orch-arrow::after{content:'';position:absolute;right:-1px;top:-4px;
+  border:5px solid transparent;border-left-color:var(--border)}
+.orch-arrow.active{background:var(--blue)}
+.orch-arrow.active::after{border-left-color:var(--blue)}
+.orch-arrow-down{width:2px;height:40px;background:var(--border);margin:0 auto;position:relative}
+.orch-arrow-down::after{content:'';position:absolute;bottom:-1px;left:-4px;
+  border:5px solid transparent;border-top-color:var(--border)}
+.orch-arrow-down.active{background:var(--blue)}
+.orch-arrow-down.active::after{border-top-color:var(--blue)}
+
+/* Packet animation on arrows */
+.orch-arrow .packet,.orch-arrow-down .packet{position:absolute;width:8px;height:8px;
+  border-radius:50%;background:var(--blue);opacity:0;box-shadow:0 0 8px var(--blue);z-index:3}
+.orch-arrow .packet{top:-3px;animation:packet-h 1.2s ease-in-out forwards}
+.orch-arrow-down .packet{left:-3px;animation:packet-v 0.8s ease-in-out forwards}
+@keyframes packet-h{0%{left:0;opacity:0}15%{opacity:1}85%{opacity:1}100%{left:calc(100% - 8px);opacity:0}}
+@keyframes packet-v{0%{top:0;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:calc(100% - 8px);opacity:0}}
+
+/* Reject loop */
+.orch-reject-loop{position:absolute;display:flex;align-items:center;gap:0}
+.orch-reject-label{font-family:var(--font-mono);font-size:.65rem;color:var(--pink);
+  padding:.15rem .5rem;border:1px solid rgba(227,208,216,0.3);border-radius:6px;
+  background:rgba(227,208,216,0.05);white-space:nowrap}
+
+/* Worker sub-graph */
+.orch-workers{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:.5rem}
+.orch-worker{border:1px dashed var(--border);border-radius:10px;padding:.8rem 1rem;
+  text-align:center;min-width:120px;position:relative;transition:all .5s}
+.orch-worker.active{border-color:var(--pink);border-style:solid;
+  box-shadow:0 0 16px rgba(227,208,216,0.1)}
+.orch-worker .worker-label{font-family:var(--font-mono);font-size:.7rem;color:var(--pink);
+  margin-bottom:.3rem;font-weight:600}
+.orch-worker .worker-nodes{font-size:.6rem;color:var(--text-dim);line-height:1.5}
+
+/* Status indicator */
+.orch-status{text-align:center;margin-top:1.5rem}
+.orch-status .status-text{font-family:var(--font-mono);font-size:.8rem;color:var(--mauve-light);
+  padding:.4rem 1rem;border:1px solid var(--border);border-radius:20px;display:inline-block;
+  transition:all .5s}
+.orch-status .status-text.running{color:var(--blue);border-color:rgba(198,210,237,0.4);
+  animation:status-pulse 1.5s ease-in-out infinite}
+.orch-status .status-text.done{color:var(--lavender);border-color:var(--lavender)}
+@keyframes status-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* Step controls */
+.orch-controls{display:flex;justify-content:center;gap:1rem;margin-top:2rem}
+.orch-btn{font-family:var(--font-mono);font-size:.75rem;padding:.5rem 1.2rem;
+  border:1px solid var(--border);border-radius:8px;background:var(--bg-card);
+  color:var(--text-muted);cursor:pointer;transition:all .2s;letter-spacing:.5px}
+.orch-btn:hover{background:var(--bg-card-hover);border-color:var(--border-accent);color:var(--lavender)}
+.orch-btn.active{background:rgba(198,210,237,0.1);border-color:var(--blue);color:var(--blue)}
+
+/* Phase 3 detail cards */
+.p3-detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:2rem}
+.p3-detail{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;
+  padding:1.5rem;transition:all .3s}
+.p3-detail:hover{border-color:var(--border-accent);background:var(--bg-card-hover)}
+.p3-detail h4{font-family:var(--font-mono);font-size:.85rem;color:var(--lavender);margin-bottom:.5rem}
+.p3-detail p{font-size:.8rem;color:var(--text-muted);line-height:1.7}
+.p3-detail .detail-tag{display:inline-block;font-family:var(--font-mono);font-size:.6rem;
+  color:var(--mauve);border:1px solid var(--border);border-radius:4px;padding:.1rem .4rem;
+  margin-bottom:.8rem;letter-spacing:.5px}
+
 /* ── Footer ────────────────────────────────────────────── */
 footer{position:relative;z-index:1;padding:4rem 0;border-top:1px solid var(--border);text-align:center}
 footer p{font-size:.8rem;color:var(--text-dim)}
@@ -217,9 +292,17 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
   .pipeline-layer .layer-name{min-width:150px}
   .pipeline-layer .layer-desc{min-width:0}
 }
+@media(max-width:1024px){
+  .p3-detail-grid{grid-template-columns:repeat(2,1fr)}
+}
 @media(max-width:768px){
   .card-grid{grid-template-columns:1fr}
   .test-grid{grid-template-columns:repeat(2,1fr)}
+  .p3-detail-grid{grid-template-columns:1fr}
+  .orch-row{flex-wrap:wrap;gap:0.5rem}
+  .orch-arrow{width:30px}
+  .orch-node{min-width:100px;padding:.8rem .6rem}
+  .orch-node .node-desc{display:none}
   .hero .metrics{flex-direction:column;gap:1.5rem}
   .arch-node:nth-child(odd),.arch-node:nth-child(even){padding:0 0 0 2rem;flex-direction:row}
   .flow-line{left:0}
@@ -253,6 +336,7 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
     <div class="logo">KAPPA <span>v0.3</span></div>
     <ul>
       <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#orchestrator">Orchestrator</a></li>
       <li><a href="#pipeline">Pipeline</a></li>
       <li><a href="#development">Development</a></li>
       <li><a href="#modules">Modules</a></li>
@@ -369,6 +453,149 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
         <text x="1010" y="78" text-anchor="middle" font-size="12" font-weight="600" fill="var(--blue)">SUCCESS</text>
         <text class="label-tiny" x="1010" y="94" text-anchor="middle" style="fill:var(--blue)">exit_code = 0</text>
       </svg>
+    </div>
+  </div>
+</section>
+
+<!-- Orchestrator Deep Dive -->
+<section id="orchestrator" style="background:rgba(231,230,247,0.02)">
+  <div class="container">
+    <div class="section-label reveal">Phase 3 Deep Dive</div>
+    <div class="section-title reveal">Orchestrator Super-Graph Flow</div>
+    <p class="section-desc reveal">
+      거대 목표가 Planner에서 DAG로 분해되고, Worker가 병렬 실행하며,
+      Reviewer가 품질을 검수하는 전체 과정을 단계별로 확인하세요.
+    </p>
+
+    <!-- Animated Flow -->
+    <div class="orch-flow reveal" id="orch-flow">
+      <!-- Main row: Planner → Dispatcher → Reviewer → Finalizer -->
+      <div class="orch-row" id="orch-main-row">
+        <div class="orch-node" id="onode-planner">
+          <div class="node-icon">&#128203;</div>
+          <div class="node-name">PLANNER</div>
+          <div class="node-desc">목표 &rarr; DAG 분해<br>LLM JSON 출력</div>
+        </div>
+        <div class="orch-arrow" id="oarrow-1"><div class="packet" id="opkt-1"></div></div>
+        <div class="orch-node" id="onode-dispatcher">
+          <div class="node-icon">&#128640;</div>
+          <div class="node-name">DISPATCHER</div>
+          <div class="node-desc">ThreadPool 병렬<br>SessionLane 직렬화</div>
+        </div>
+        <div class="orch-arrow" id="oarrow-2"><div class="packet" id="opkt-2"></div></div>
+        <div class="orch-node" id="onode-reviewer">
+          <div class="node-icon">&#128269;</div>
+          <div class="node-name">REVIEWER</div>
+          <div class="node-desc">Quality Gate<br>approve / reject</div>
+        </div>
+        <div class="orch-arrow" id="oarrow-3"><div class="packet" id="opkt-3"></div></div>
+        <div class="orch-node" id="onode-finalizer">
+          <div class="node-icon">&#9989;</div>
+          <div class="node-name">FINALIZER</div>
+          <div class="node-desc">결과 병합<br>최종 출력</div>
+        </div>
+      </div>
+
+      <!-- Worker sub-graphs below Dispatcher -->
+      <div class="orch-arrow-down" id="oarrow-down" style="margin-top:0"><div class="packet" id="opkt-down"></div></div>
+      <div class="orch-workers" id="orch-workers">
+        <div class="orch-worker" id="oworker-1">
+          <div class="worker-label">Worker #1</div>
+          <div class="worker-nodes">coder &rarr; parser &rarr; linter &rarr; sandbox</div>
+        </div>
+        <div class="orch-worker" id="oworker-2">
+          <div class="worker-label">Worker #2</div>
+          <div class="worker-nodes">coder &rarr; parser &rarr; linter &rarr; sandbox</div>
+        </div>
+        <div class="orch-worker" id="oworker-3">
+          <div class="worker-label">Worker #3</div>
+          <div class="worker-nodes">coder &rarr; parser &rarr; linter &rarr; sandbox</div>
+        </div>
+      </div>
+
+      <!-- Reject loop label -->
+      <div style="text-align:center;margin-top:1.2rem" id="orch-reject-area">
+        <div class="orch-reject-label" id="orch-reject-label" style="opacity:0;transition:opacity .5s">
+          &#8634; REJECTED &mdash; critique 피드백과 함께 Dispatcher로 재순환
+        </div>
+      </div>
+
+      <!-- Telemetry indicator -->
+      <div style="text-align:center;margin-top:1rem" id="orch-telemetry-area">
+        <div class="orch-reject-label" id="orch-telemetry-label" style="opacity:0;transition:opacity .5s;border-color:rgba(198,210,237,0.3);color:var(--blue)">
+          &#128202; TelemetryManager &mdash; think / critique / score JSONL 기록
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="orch-status">
+        <span class="status-text" id="orch-status-text">READY</span>
+      </div>
+
+      <!-- Controls -->
+      <div class="orch-controls">
+        <button class="orch-btn" id="orch-btn-auto" onclick="orchAutoPlay()">&#9654; Auto Play</button>
+        <button class="orch-btn" id="orch-btn-step" onclick="orchStepOnce()">&#9197; Step</button>
+        <button class="orch-btn" id="orch-btn-reset" onclick="orchReset()">&#8635; Reset</button>
+      </div>
+    </div>
+
+    <!-- Phase 3 Detail Cards -->
+    <div class="p3-detail-grid reveal" style="margin-top:4rem">
+      <div class="p3-detail">
+        <div class="detail-tag">PLANNER</div>
+        <h4>DAG 분해 전략</h4>
+        <p>
+          LLM에게 목표를 전달하면 <code>depends_on</code>으로 연결된 SubTask DAG를 JSON으로 반환합니다.
+          독립 태스크는 병렬 실행되고, 의존성이 있는 태스크는 선행 완료 후 순차 실행됩니다.
+          최대 <strong>10개</strong> 서브태스크로 제한하여 폭발적 분해를 방지합니다.
+        </p>
+      </div>
+      <div class="p3-detail">
+        <div class="detail-tag">QUALITY GATE</div>
+        <h4>Reviewer 검수 루프</h4>
+        <p>
+          Reviewer LLM이 각 워커 산출물을 <strong>approve/reject</strong>로 판정합니다.
+          거부 시 <code>critique</code>(개선 사유)가 워커 프롬프트에 주입되어 재시도됩니다.
+          누적 거부 <strong>3회</strong> 초과 시 전체 오케스트레이션이 실패 처리됩니다.
+        </p>
+      </div>
+      <div class="p3-detail">
+        <div class="detail-tag">TELEMETRY</div>
+        <h4>Agent-RRM 궤적 기록</h4>
+        <p>
+          Reviewer의 모든 판정이 <code>TrajectoryRecord</code>로 JSONL에 누적됩니다.
+          <strong>think</strong>(추론), <strong>critique</strong>(비평), <strong>score</strong>(0.0~1.0)를
+          기록하여 사후 분석과 에이전트 성능 추적이 가능합니다.
+        </p>
+      </div>
+      <div class="p3-detail">
+        <div class="detail-tag">SESSION LANE</div>
+        <h4>Per-Key 자원 직렬화</h4>
+        <p>
+          Dispatcher가 워커를 <code>ThreadPoolExecutor</code>로 병렬 실행할 때,
+          <code>SyncSessionLane</code>이 동일 키(task ID)에 대한 동시 접근을 직렬화합니다.
+          메타 Lock이 키 생성을 보호하고, 개별 Lock이 실행을 직렬화하는 2계층 구조입니다.
+        </p>
+      </div>
+      <div class="p3-detail">
+        <div class="detail-tag">JITTER BACKOFF</div>
+        <h4>Decorrelated Jitter 재시도</h4>
+        <p>
+          AWS 권장 알고리즘: <code>sleep = min(cap, random(base, prev&times;3))</code>.
+          동시 다발 워커의 재시도가 같은 시점에 몰리는 <strong>Thundering Herd</strong>를
+          Jitter로 분산시켜 시스템 안정성을 확보합니다.
+        </p>
+      </div>
+      <div class="p3-detail">
+        <div class="detail-tag">SUPER-GRAPH</div>
+        <h4>계층적 그래프 패턴</h4>
+        <p>
+          <code>OrchestratorGraph</code>(Super-Graph)가 <code>SelfHealingGraph</code>(Sub-Graph)를
+          블랙박스 워커로 소비합니다. 단방향 의존: Orchestrator &rarr; Worker.
+          기존 Phase 1/2 코드 <strong>수정 0건</strong> &mdash; 완전한 Additive-Only 설계.
+        </p>
+      </div>
     </div>
   </div>
 </section>
@@ -969,6 +1196,181 @@ window.addEventListener('scroll', () => {
   }
   lastScroll = current;
 }, { passive: true });
+
+// ── Orchestrator Flow Animation ───────────────────────
+(function() {
+  const STEPS = [
+    { name: 'planning',     status: 'PLANNER: 목표를 서브태스크 DAG로 분해 중...' },
+    { name: 'dispatching',  status: 'DISPATCHER: 워커에게 서브태스크 병렬 전달 중...' },
+    { name: 'workers',      status: 'WORKERS: SelfHealingGraph 루프 실행 중...' },
+    { name: 'reviewing',    status: 'REVIEWER: Quality Gate 검수 중...' },
+    { name: 'telemetry',    status: 'TELEMETRY: 궤적 JSONL 기록 중...' },
+    { name: 'reject',       status: 'REJECTED: critique 피드백 → Dispatcher 재순환' },
+    { name: 'dispatching2', status: 'DISPATCHER: 거부된 태스크 재실행 중...' },
+    { name: 'workers2',     status: 'WORKERS: 비평 반영하여 재시도 중...' },
+    { name: 'reviewing2',   status: 'REVIEWER: 재검수 — 이번엔 승인!' },
+    { name: 'finalizing',   status: 'FINALIZER: 결과 병합 → 최종 출력 생성' },
+    { name: 'done',         status: 'DONE: 오케스트레이션 완료 ✓' },
+  ];
+
+  let currentStep = -1;
+  let autoTimer = null;
+  let isPlaying = false;
+
+  function resetAll() {
+    currentStep = -1;
+    isPlaying = false;
+    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+    // Reset nodes
+    document.querySelectorAll('.orch-node').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.orch-arrow, .orch-arrow-down').forEach(a => a.classList.remove('active'));
+    document.querySelectorAll('.orch-worker').forEach(w => w.classList.remove('active'));
+    // Reset packets — remove and re-clone to restart animation
+    document.querySelectorAll('.packet').forEach(p => { p.style.animation = 'none'; p.style.opacity = '0'; });
+    // Reset labels
+    var rl = document.getElementById('orch-reject-label');
+    var tl = document.getElementById('orch-telemetry-label');
+    if (rl) rl.style.opacity = '0';
+    if (tl) tl.style.opacity = '0';
+    // Reset status
+    var st = document.getElementById('orch-status-text');
+    if (st) { st.textContent = 'READY'; st.className = 'status-text'; }
+    // Reset button
+    var btn = document.getElementById('orch-btn-auto');
+    if (btn) { btn.textContent = '\u25B6 Auto Play'; btn.classList.remove('active'); }
+  }
+
+  function firePacket(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.style.animation = 'none';
+    el.offsetHeight; // reflow
+    var isVert = el.parentElement.classList.contains('orch-arrow-down');
+    el.style.animation = (isVert ? 'packet-v' : 'packet-h') + ' 1s ease-in-out forwards';
+  }
+
+  function activateNode(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  }
+
+  function activateArrow(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  }
+
+  function activateWorkers() {
+    document.querySelectorAll('.orch-worker').forEach((w, i) => {
+      setTimeout(() => w.classList.add('active'), i * 200);
+    });
+  }
+
+  function deactivateWorkers() {
+    document.querySelectorAll('.orch-worker').forEach(w => w.classList.remove('active'));
+  }
+
+  function setStatus(text, cls) {
+    var st = document.getElementById('orch-status-text');
+    if (st) { st.textContent = text; st.className = 'status-text ' + (cls || 'running'); }
+  }
+
+  function runStep() {
+    currentStep++;
+    if (currentStep >= STEPS.length) {
+      isPlaying = false;
+      var btn = document.getElementById('orch-btn-auto');
+      if (btn) { btn.textContent = '\u25B6 Auto Play'; btn.classList.remove('active'); }
+      return false;
+    }
+
+    var s = STEPS[currentStep];
+    setStatus(s.status, currentStep === STEPS.length - 1 ? 'done' : 'running');
+
+    switch(s.name) {
+      case 'planning':
+        activateNode('onode-planner');
+        break;
+      case 'dispatching':
+      case 'dispatching2':
+        activateArrow('oarrow-1'); firePacket('opkt-1');
+        setTimeout(function(){ activateNode('onode-dispatcher'); }, 600);
+        break;
+      case 'workers':
+      case 'workers2':
+        activateArrow('oarrow-down'); firePacket('opkt-down');
+        setTimeout(activateWorkers, 400);
+        break;
+      case 'reviewing':
+      case 'reviewing2':
+        deactivateWorkers();
+        activateArrow('oarrow-2'); firePacket('opkt-2');
+        setTimeout(function(){ activateNode('onode-reviewer'); }, 600);
+        break;
+      case 'telemetry':
+        var tl = document.getElementById('orch-telemetry-label');
+        if (tl) tl.style.opacity = '1';
+        break;
+      case 'reject':
+        var rl = document.getElementById('orch-reject-label');
+        if (rl) rl.style.opacity = '1';
+        // Deactivate reviewer for re-loop
+        document.getElementById('onode-reviewer').classList.remove('active');
+        document.getElementById('oarrow-2').classList.remove('active');
+        break;
+      case 'finalizing':
+        var rl2 = document.getElementById('orch-reject-label');
+        if (rl2) rl2.style.opacity = '0';
+        activateArrow('oarrow-3'); firePacket('opkt-3');
+        setTimeout(function(){ activateNode('onode-finalizer'); }, 600);
+        break;
+      case 'done':
+        break;
+    }
+    return true;
+  }
+
+  window.orchAutoPlay = function() {
+    if (isPlaying) {
+      isPlaying = false;
+      if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+      var btn = document.getElementById('orch-btn-auto');
+      if (btn) { btn.textContent = '\u25B6 Auto Play'; btn.classList.remove('active'); }
+      return;
+    }
+    if (currentStep >= STEPS.length - 1) resetAll();
+    isPlaying = true;
+    var btn = document.getElementById('orch-btn-auto');
+    if (btn) { btn.textContent = '\u23F8 Pause'; btn.classList.add('active'); }
+
+    function tick() {
+      if (!isPlaying) return;
+      var more = runStep();
+      if (more && isPlaying) {
+        autoTimer = setTimeout(tick, 1800);
+      } else {
+        isPlaying = false;
+        var b = document.getElementById('orch-btn-auto');
+        if (b) { b.textContent = '\u25B6 Auto Play'; b.classList.remove('active'); }
+      }
+    }
+    tick();
+  };
+
+  window.orchStepOnce = function() {
+    if (isPlaying) { // stop auto if running
+      isPlaying = false;
+      if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+      var btn = document.getElementById('orch-btn-auto');
+      if (btn) { btn.textContent = '\u25B6 Auto Play'; btn.classList.remove('active'); }
+    }
+    if (currentStep >= STEPS.length - 1) resetAll();
+    runStep();
+  };
+
+  window.orchReset = function() {
+    resetAll();
+  };
+})();
 </script>
 </body>
 </html>
