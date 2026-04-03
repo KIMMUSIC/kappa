@@ -16,4 +16,4 @@
 | 노드/엣지 추가·삭제 | Architecture SVG 플로우 다이어그램 반영 |
 
 ## Color Palette (docs only)
-`#e7e6f7` `#e3d0d8` `#aea3b0` `#827081` `#c6d2ed` + white/black/gray만 사용.
+`#f0b866` `#4ade80` `#60a5fa` `#818cf8` `#f87171` + `#08080a`~`#1c1c20` dark bg + white/gray만 사용.

@@ -5,1371 +5,864 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kappa - Autonomous Self-Healing Agent Harness</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* ── Reset & Variables ─────────────────────────────────── */
+/* ── Reset & Palette ──────────────────────────────────── */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --lavender:#e7e6f7;--pink:#e3d0d8;--mauve-light:#aea3b0;
-  --mauve:#827081;--blue:#c6d2ed;
-  --bg:#0c0b12;--bg-card:rgba(231,230,247,0.04);
-  --bg-card-hover:rgba(231,230,247,0.08);
-  --text:#e7e6f7;--text-muted:#aea3b0;--text-dim:rgba(174,163,176,0.5);
-  --border:rgba(174,163,176,0.15);--border-accent:rgba(198,210,237,0.3);
-  --font-mono:'JetBrains Mono',monospace;--font-sans:'Inter',sans-serif;
+  --bg-deep:#08080a;--bg:#0e0e11;--bg-surface:#151518;--bg-elevated:#1c1c20;
+  --border:#28282d;--border-hover:#3a3a40;
+  --text:#ececec;--text-sec:#9e9e9e;--text-dim:#5c5c5c;
+  --amber:#f0b866;--amber-dim:rgba(240,184,102,0.12);--amber-glow:rgba(240,184,102,0.06);
+  --green:#4ade80;--red:#f87171;--blue:#60a5fa;--indigo:#818cf8;
+  --font-display:'Manrope',sans-serif;--font-body:'DM Sans',sans-serif;
+  --font-mono:'Fira Code',monospace;
+  --ease-out-expo:cubic-bezier(.16,1,.3,1);
 }
 html{scroll-behavior:smooth;font-size:16px}
-body{background:var(--bg);color:var(--text);font-family:var(--font-sans);
+body{background:var(--bg-deep);color:var(--text);font-family:var(--font-body);
   line-height:1.7;overflow-x:hidden}
-::selection{background:rgba(130,112,129,0.4);color:#fff}
-a{color:var(--blue);text-decoration:none;transition:color .2s}
-a:hover{color:var(--lavender)}
+/* Grid bg */
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(240,184,102,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(240,184,102,.025) 1px,transparent 1px);
+  background-size:60px 60px;pointer-events:none;z-index:0}
+/* Noise */
+body::after{content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity:.02;pointer-events:none;z-index:9999;mix-blend-mode:overlay}
+::selection{background:rgba(240,184,102,.3);color:#fff}
+a{color:var(--amber);text-decoration:none;transition:color .2s}
+a:hover{color:var(--text)}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg-deep)}
+::-webkit-scrollbar-thumb{background:var(--border-hover);border-radius:3px}
+.container{max-width:1120px;margin:0 auto;padding:0 2rem}
 
-/* ── Scrollbar ─────────────────────────────────────────── */
-::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--mauve);border-radius:3px}
-
-/* ── Utility ───────────────────────────────────────────── */
-.container{max-width:1100px;margin:0 auto;padding:0 2rem}
-.mono{font-family:var(--font-mono)}
-.text-muted{color:var(--text-muted)}
-.text-dim{color:var(--text-dim)}
-.text-blue{color:var(--blue)}
-.text-pink{color:var(--pink)}
-.text-mauve{color:var(--mauve-light)}
-.text-lavender{color:var(--lavender)}
-
-/* ── Scroll Reveal ─────────────────────────────────────── */
-.reveal{opacity:0;transform:translateY(30px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
-.reveal.visible{opacity:1;transform:translateY(0)}
-.reveal-delay-1{transition-delay:.1s}
-.reveal-delay-2{transition-delay:.2s}
-.reveal-delay-3{transition-delay:.3s}
-
-/* ── Animated BG Mesh ──────────────────────────────────── */
-.bg-mesh{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
-.bg-mesh .orb{position:absolute;border-radius:50%;filter:blur(120px);opacity:.08;animation:float 20s ease-in-out infinite}
-.bg-mesh .orb-1{width:600px;height:600px;background:var(--mauve);top:-10%;left:-10%;animation-delay:0s}
-.bg-mesh .orb-2{width:500px;height:500px;background:var(--blue);top:40%;right:-15%;animation-delay:-7s}
-.bg-mesh .orb-3{width:400px;height:400px;background:var(--pink);bottom:-5%;left:30%;animation-delay:-14s}
-@keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-40px) scale(1.05)}66%{transform:translate(-20px,30px) scale(.95)}}
+/* ── Scroll Animations ────────────────────────────────── */
+.fade-up{opacity:0;transform:translateY(32px);transition:opacity .7s var(--ease-out-expo),transform .7s var(--ease-out-expo)}
+.fade-up.vis{opacity:1;transform:none}
+.fade-left{opacity:0;transform:translateX(-32px);transition:opacity .7s var(--ease-out-expo),transform .7s var(--ease-out-expo)}
+.fade-left.vis{opacity:1;transform:none}
+.fade-right{opacity:0;transform:translateX(32px);transition:opacity .7s var(--ease-out-expo),transform .7s var(--ease-out-expo)}
+.fade-right.vis{opacity:1;transform:none}
+.clip-reveal{clip-path:inset(0 100% 0 0);transition:clip-path .8s var(--ease-out-expo)}
+.clip-reveal.vis{clip-path:inset(0 0 0 0)}
+[data-delay="1"]{transition-delay:.1s}[data-delay="2"]{transition-delay:.2s}
+[data-delay="3"]{transition-delay:.3s}[data-delay="4"]{transition-delay:.4s}
+[data-delay="5"]{transition-delay:.5s}
 
 /* ── Nav ───────────────────────────────────────────────── */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1rem 0;
-  backdrop-filter:blur(20px);background:rgba(12,11,18,0.8);border-bottom:1px solid var(--border);
-  transition:transform .3s}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1rem 0;transition:all .4s}
+nav.scrolled{background:rgba(14,14,17,.92);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);padding:.7rem 0}
 nav .container{display:flex;align-items:center;justify-content:space-between}
-nav .logo{font-family:var(--font-mono);font-weight:700;font-size:1.1rem;letter-spacing:2px;color:var(--lavender)}
-nav .logo span{color:var(--mauve-light);font-weight:300}
-nav ul{display:flex;gap:2rem;list-style:none}
-nav ul a{font-size:.85rem;color:var(--text-muted);letter-spacing:.5px;transition:color .2s}
-nav ul a:hover{color:var(--lavender)}
+nav .logo{font-family:var(--font-display);font-weight:800;font-size:1rem;letter-spacing:3px;
+  color:var(--text);display:flex;align-items:center;gap:.6rem}
+nav .logo .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);
+  box-shadow:0 0 8px var(--amber);animation:pulse-dot 2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 8px var(--amber)}50%{opacity:.5;box-shadow:0 0 4px var(--amber)}}
+nav .nav-links{display:flex;gap:1.8rem;list-style:none}
+nav .nav-links a{font-family:var(--font-mono);font-size:.72rem;color:var(--text-dim);
+  letter-spacing:.5px;transition:color .2s}
+nav .nav-links a:hover{color:var(--amber)}
+.nav-toggle{display:none;background:none;border:none;cursor:pointer;padding:.5rem;flex-direction:column;gap:5px}
+.nav-toggle span{display:block;width:18px;height:1.5px;background:var(--text-sec);transition:all .3s}
+.mobile-menu{display:none;position:fixed;inset:0;top:52px;background:rgba(8,8,10,.97);
+  backdrop-filter:blur(24px);z-index:99;padding:3rem 2rem}
+.mobile-menu.open{display:flex;align-items:center;justify-content:center}
+.mobile-menu ul{list-style:none;text-align:center;display:flex;flex-direction:column;gap:2rem}
+.mobile-menu ul a{font-family:var(--font-display);font-size:1.1rem;color:var(--text-sec)}
 
 /* ── Hero ──────────────────────────────────────────────── */
-.hero{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;z-index:1}
-.hero-content{position:relative}
-.hero .version{display:inline-block;font-family:var(--font-mono);font-size:.75rem;color:var(--mauve-light);
-  border:1px solid var(--border);padding:.3rem .8rem;border-radius:20px;margin-bottom:1.5rem;letter-spacing:1px}
-.hero h1{font-family:var(--font-mono);font-size:clamp(3rem,8vw,6rem);font-weight:700;
-  letter-spacing:6px;line-height:1.1;margin-bottom:1rem;
-  background:linear-gradient(135deg,var(--lavender),var(--blue),var(--pink));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero .subtitle{font-size:1.1rem;color:var(--text-muted);max-width:550px;margin:0 auto 2rem;line-height:1.8}
-.hero .metrics{display:flex;gap:3rem;justify-content:center;margin-top:3rem}
-.hero .metric{text-align:center}
-.hero .metric-value{font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--lavender)}
-.hero .metric-label{font-size:.75rem;color:var(--text-dim);margin-top:.3rem;letter-spacing:1px;text-transform:uppercase}
-.scroll-indicator{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);
-  animation:bounce 2s ease-in-out infinite}
-.scroll-indicator svg{width:24px;height:24px;stroke:var(--mauve-light);stroke-width:2;fill:none}
-@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(10px)}}
+.hero{position:relative;min-height:100vh;display:flex;align-items:center;
+  justify-content:center;z-index:1;padding:6rem 0 4rem}
+.hero-inner{text-align:center;width:100%;max-width:800px;margin:0 auto}
+.hero .eyebrow{font-family:var(--font-mono);font-size:.68rem;color:var(--amber);
+  letter-spacing:3px;text-transform:uppercase;margin-bottom:1.5rem;opacity:.8}
+.hero h1{font-family:var(--font-display);font-size:clamp(3rem,8vw,5.5rem);font-weight:800;
+  letter-spacing:-2px;line-height:1.05;color:var(--text);margin-bottom:1rem}
+.hero h1 em{font-style:normal;color:var(--amber)}
+.hero .subtitle{font-size:1rem;color:var(--text-sec);max-width:520px;margin:0 auto 3rem;line-height:1.8}
 
-/* ── Section ───────────────────────────────────────────── */
-section{position:relative;z-index:1;padding:8rem 0}
-.section-label{font-family:var(--font-mono);font-size:.7rem;color:var(--mauve);
-  letter-spacing:3px;text-transform:uppercase;margin-bottom:.8rem}
-.section-title{font-family:var(--font-mono);font-size:clamp(1.5rem,4vw,2.2rem);
-  font-weight:600;color:var(--lavender);margin-bottom:1rem}
-.section-desc{color:var(--text-muted);max-width:600px;margin-bottom:3rem;font-size:.95rem}
+/* Terminal */
+.terminal{position:relative;max-width:680px;margin:0 auto;background:var(--bg);
+  border:1px solid var(--border);border-radius:12px;overflow:hidden;text-align:left}
+.terminal::after{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.02) 2px,rgba(0,0,0,.02) 4px);
+  pointer-events:none;border-radius:12px}
+.terminal-bar{display:flex;align-items:center;gap:.5rem;padding:.7rem 1rem;
+  background:var(--bg-surface);border-bottom:1px solid var(--border)}
+.terminal-bar .td{width:10px;height:10px;border-radius:50%}
+.terminal-bar .td-r{background:#f87171}.terminal-bar .td-y{background:#f0b866}.terminal-bar .td-g{background:#4ade80}
+.terminal-bar span{font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim);margin-left:auto}
+.terminal-body{padding:1.2rem 1.5rem;font-family:var(--font-mono);font-size:.78rem;
+  line-height:1.9;min-height:320px;color:var(--text-sec)}
+.terminal-body .cmd{color:var(--text)}
+.terminal-body .cmd::before{content:'$ ';color:var(--amber)}
+.terminal-body .out{color:var(--text-sec)}
+.terminal-body .step{color:var(--blue)}
+.terminal-body .ok{color:var(--green)}
+.terminal-body .done{color:var(--amber);font-weight:500}
+.terminal-body .cursor{display:inline-block;width:7px;height:14px;background:var(--amber);
+  margin-left:2px;animation:blink-c .8s step-end infinite;vertical-align:middle}
+@keyframes blink-c{50%{opacity:0}}
 
-/* ── Architecture Flow ─────────────────────────────────── */
-.arch-flow{position:relative;padding:3rem 0}
-.flow-line{position:absolute;left:50%;top:0;bottom:0;width:2px;
-  background:linear-gradient(to bottom,transparent,var(--border-accent),var(--border-accent),transparent)}
-.flow-line::after{content:'';position:absolute;top:0;left:-1px;width:4px;height:100%;
-  background:linear-gradient(to bottom,transparent,var(--blue),transparent);
-  animation:flow-pulse 3s ease-in-out infinite;opacity:0}
-@keyframes flow-pulse{0%{opacity:0;transform:translateY(-100%)}50%{opacity:.6}100%{opacity:0;transform:translateY(100%)}}
+/* Hero metrics */
+.hero-metrics{display:flex;justify-content:center;gap:4rem;margin-top:3rem}
+.hero-metric{text-align:center}
+.hero-metric .val{font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--text)}
+.hero-metric .lbl{font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim);
+  letter-spacing:1.5px;text-transform:uppercase;margin-top:.3rem}
 
-.arch-node{position:relative;display:flex;align-items:center;margin-bottom:4rem}
-.arch-node:nth-child(odd){flex-direction:row;padding-right:calc(50% + 3rem)}
-.arch-node:nth-child(even){flex-direction:row-reverse;padding-left:calc(50% + 3rem)}
-.arch-node .dot{position:absolute;left:50%;transform:translateX(-50%);width:14px;height:14px;
-  border-radius:50%;border:2px solid var(--blue);background:var(--bg);z-index:2}
-.arch-node .dot::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--blue);
-  animation:dot-glow 2s ease-in-out infinite alternate}
-@keyframes dot-glow{from{opacity:.4}to{opacity:1}}
+/* ── Section Base ─────────────────────────────────────── */
+section{position:relative;z-index:1;padding:7rem 0}
+.sec-eyebrow{font-family:var(--font-mono);font-size:.65rem;color:var(--amber);
+  letter-spacing:3px;text-transform:uppercase;margin-bottom:.6rem;opacity:.7}
+.sec-title{font-family:var(--font-display);font-size:clamp(1.6rem,4vw,2.4rem);
+  font-weight:700;color:var(--text);margin-bottom:.8rem;letter-spacing:-.5px}
+.sec-desc{color:var(--text-sec);max-width:560px;font-size:.92rem;margin-bottom:3rem}
+.sec-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);
+  margin:0 auto;max-width:600px}
 
-/* ── Cards ─────────────────────────────────────────────── */
-.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;
-  padding:2rem;transition:all .3s;cursor:default;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,var(--border-accent),transparent);opacity:0;transition:opacity .3s}
-.card:hover{background:var(--bg-card-hover);border-color:var(--border-accent);
-  transform:translateY(-2px);box-shadow:0 8px 40px rgba(198,210,237,0.05)}
-.card:hover::before{opacity:1}
-.card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;
-  margin-bottom:1.2rem;font-family:var(--font-mono);font-size:1rem;font-weight:700}
-.card-icon.budget{background:rgba(198,210,237,0.1);color:var(--blue)}
-.card-icon.sandbox{background:rgba(227,208,216,0.1);color:var(--pink)}
-.card-icon.graph{background:rgba(130,112,129,0.15);color:var(--mauve-light)}
-.card h3{font-family:var(--font-mono);font-size:1rem;font-weight:600;color:var(--lavender);margin-bottom:.6rem}
-.card p{color:var(--text-muted);font-size:.85rem;line-height:1.7}
-.card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+/* ── Architecture SVG ─────────────────────────────────── */
+.arch-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2rem 0}
+.arch-wrap svg{width:100%;min-width:750px;max-width:1060px;margin:0 auto;display:block}
+.arch-wrap .node-box{fill:var(--bg-surface);stroke:var(--border);stroke-width:1;rx:8;
+  transition:fill .3s,stroke .3s;cursor:default}
+.arch-wrap .node-box:hover{fill:var(--bg-elevated);stroke:var(--border-hover)}
+.arch-wrap text{font-family:'Fira Code',monospace}
+.arch-wrap .n-label{fill:var(--text);font-size:13px;font-weight:500}
+.arch-wrap .n-sub{fill:var(--text-dim);font-size:10px}
+.arch-wrap .n-tiny{fill:var(--text-dim);font-size:9px}
+.arch-wrap .edge{stroke:var(--border-hover);stroke-width:1.5;fill:none;stroke-dasharray:6 4;
+  animation:dash-anim .8s linear infinite}
+.arch-wrap .edge-active{stroke:var(--amber);stroke-width:1.5;fill:none;stroke-dasharray:6 4;
+  animation:dash-anim .8s linear infinite}
+@keyframes dash-anim{to{stroke-dashoffset:-10}}
+/* Particles */
+.arch-particle{fill:var(--amber);opacity:.8}
+.arch-particle.p-blue{fill:var(--blue)}
+.arch-particle.p-green{fill:var(--green)}
 
-/* ── Timeline ──────────────────────────────────────────── */
-.timeline{position:relative;padding-left:3rem}
-.timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
-  background:linear-gradient(to bottom,var(--border-accent),var(--border))}
-.timeline-item{position:relative;margin-bottom:4rem;padding-left:2rem}
-.timeline-item::before{content:'';position:absolute;left:-3rem;top:.5rem;width:10px;height:10px;
-  border-radius:50%;border:2px solid var(--blue);background:var(--bg)}
-.timeline-item.active::before{background:var(--blue);box-shadow:0 0 12px rgba(198,210,237,0.4)}
-.timeline-item .task-tag{font-family:var(--font-mono);font-size:.7rem;color:var(--mauve);
-  letter-spacing:2px;text-transform:uppercase;margin-bottom:.5rem}
-.timeline-item h3{font-family:var(--font-mono);font-size:1.1rem;color:var(--lavender);margin-bottom:.5rem}
-.timeline-item p{color:var(--text-muted);font-size:.9rem;margin-bottom:1rem}
-.timeline-item .status{display:inline-flex;align-items:center;gap:.4rem;
-  font-family:var(--font-mono);font-size:.7rem;letter-spacing:1px;
-  padding:.25rem .7rem;border-radius:12px;border:1px solid rgba(198,210,237,0.2);color:var(--blue)}
-.timeline-item .status::before{content:'';width:6px;height:6px;border-radius:50%;
-  background:var(--blue);animation:status-blink 2s ease-in-out infinite}
-@keyframes status-blink{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* ── Pipeline Viz ──────────────────────────────────────── */
-.pipeline{display:flex;flex-direction:column;gap:0;position:relative}
-.pipeline-layer{display:flex;align-items:center;gap:1.5rem;padding:1.5rem 2rem;
-  border:1px solid var(--border);border-radius:10px;position:relative;
-  transition:all .3s;cursor:default}
-.pipeline-layer:hover{background:var(--bg-card-hover);border-color:var(--border-accent)}
-.pipeline-layer .layer-num{font-family:var(--font-mono);font-size:.7rem;color:var(--text-dim);
-  width:20px;flex-shrink:0}
-.pipeline-layer .layer-name{font-family:var(--font-mono);font-size:.9rem;color:var(--lavender);
-  min-width:200px}
-.pipeline-layer .layer-desc{font-size:.8rem;color:var(--text-muted);flex:1}
-.pipeline-layer .layer-impl{font-family:var(--font-mono);font-size:.7rem;color:var(--mauve);
-  padding:.2rem .6rem;border:1px solid var(--border);border-radius:6px;white-space:nowrap}
-.pipeline-connector{width:2px;height:1.5rem;background:var(--border-accent);margin-left:3.5rem;position:relative}
-.pipeline-connector::after{content:'';position:absolute;left:-3px;bottom:-2px;
-  border:4px solid transparent;border-top-color:var(--border-accent)}
-
-/* ── Flow Diagram ──────────────────────────────────────── */
-.flow-diagram{position:relative;padding:3rem 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.flow-diagram svg{width:100%;min-width:750px;max-width:1060px;margin:0 auto;display:block}
-.flow-diagram .flow-path{stroke:var(--border-accent);stroke-width:2;fill:none;
-  stroke-dasharray:8 4;animation:dash-flow .8s linear infinite}
-.flow-diagram .flow-path-active{stroke:var(--blue);stroke-width:2;fill:none;
-  stroke-dasharray:8 4;animation:dash-flow .8s linear infinite}
-@keyframes dash-flow{to{stroke-dashoffset:-12}}
-.flow-diagram .node-box{fill:rgba(231,230,247,0.04);stroke:var(--border);stroke-width:1;rx:8}
-.flow-diagram .node-box:hover{fill:rgba(231,230,247,0.08);stroke:var(--border-accent)}
-.flow-diagram text{font-family:'JetBrains Mono',monospace;fill:var(--lavender)}
-.flow-diagram .label-small{font-size:10px;fill:var(--text-muted)}
-.flow-diagram .label-tiny{font-size:9px;fill:var(--mauve)}
-
-/* ── Code Block ────────────────────────────────────────── */
-.code-block{background:rgba(12,11,18,0.8);border:1px solid var(--border);border-radius:10px;
-  padding:1.5rem;font-family:var(--font-mono);font-size:.8rem;line-height:1.8;
-  overflow-x:auto;color:var(--text-muted);position:relative}
-.code-block .comment{color:var(--text-dim)}
-.code-block .keyword{color:var(--blue)}
-.code-block .string{color:var(--pink)}
-.code-block .func{color:var(--lavender)}
-.code-block .num{color:var(--mauve-light)}
-.code-block-header{display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid var(--border)}
-.code-block-header .dot{width:8px;height:8px;border-radius:50%;background:var(--mauve)}
-.code-block-header .dot:nth-child(2){background:var(--mauve-light)}
-.code-block-header .dot:nth-child(3){background:var(--blue)}
-.code-block-header span{font-size:.7rem;color:var(--text-dim);margin-left:auto}
-.code-block pre{margin:0;font-family:inherit;font-size:inherit;line-height:inherit;color:inherit;white-space:pre;overflow-x:auto}
-
-/* ── Test Results ──────────────────────────────────────── */
-.test-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
-.test-card{text-align:center;padding:1.5rem;border:1px solid var(--border);border-radius:10px;
-  transition:all .3s}
-.test-card:hover{border-color:var(--border-accent)}
-.test-card .count{font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--lavender)}
-.test-card .label{font-size:.75rem;color:var(--text-muted);margin-top:.3rem}
-.test-bar{height:4px;background:var(--border);border-radius:2px;margin-top:1rem;overflow:hidden}
-.test-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--blue),var(--lavender));
-  width:0;transition:width 1.5s cubic-bezier(.16,1,.3,1)}
-
-/* ── Orchestrator Animated Flow ────────────────────────── */
-.orch-flow{position:relative;max-width:900px;margin:0 auto;padding:2rem 0}
-.orch-row{display:flex;align-items:center;justify-content:center;gap:0;position:relative}
-.orch-node{position:relative;min-width:140px;text-align:center;padding:1.2rem 1rem;
-  border:1.5px solid var(--border);border-radius:12px;background:var(--bg-card);
-  transition:all .5s;z-index:2}
-.orch-node .node-icon{font-size:1.4rem;margin-bottom:.4rem}
-.orch-node .node-name{font-family:var(--font-mono);font-size:.85rem;font-weight:600;color:var(--lavender)}
-.orch-node .node-desc{font-size:.7rem;color:var(--text-muted);margin-top:.25rem;line-height:1.4}
-.orch-node.active{border-color:var(--blue);box-shadow:0 0 24px rgba(198,210,237,0.15)}
-.orch-node.active .node-name{color:#fff}
-.orch-arrow{width:50px;height:2px;background:var(--border);position:relative;flex-shrink:0}
-.orch-arrow::after{content:'';position:absolute;right:-1px;top:-4px;
-  border:5px solid transparent;border-left-color:var(--border)}
-.orch-arrow.active{background:var(--blue)}
-.orch-arrow.active::after{border-left-color:var(--blue)}
-.orch-arrow-down{width:2px;height:40px;background:var(--border);margin:0 auto;position:relative}
-.orch-arrow-down::after{content:'';position:absolute;bottom:-1px;left:-4px;
-  border:5px solid transparent;border-top-color:var(--border)}
-.orch-arrow-down.active{background:var(--blue)}
-.orch-arrow-down.active::after{border-top-color:var(--blue)}
-
-/* Packet animation on arrows */
-.orch-arrow .packet,.orch-arrow-down .packet{position:absolute;width:8px;height:8px;
-  border-radius:50%;background:var(--blue);opacity:0;box-shadow:0 0 8px var(--blue);z-index:3}
-.orch-arrow .packet{top:-3px;animation:packet-h 1.2s ease-in-out forwards}
-.orch-arrow-down .packet{left:-3px;animation:packet-v 0.8s ease-in-out forwards}
-@keyframes packet-h{0%{left:0;opacity:0}15%{opacity:1}85%{opacity:1}100%{left:calc(100% - 8px);opacity:0}}
-@keyframes packet-v{0%{top:0;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:calc(100% - 8px);opacity:0}}
-
-/* Reject loop */
-.orch-reject-loop{position:absolute;display:flex;align-items:center;gap:0}
-.orch-reject-label{font-family:var(--font-mono);font-size:.65rem;color:var(--pink);
-  padding:.15rem .5rem;border:1px solid rgba(227,208,216,0.3);border-radius:6px;
-  background:rgba(227,208,216,0.05);white-space:nowrap}
-
-/* Worker sub-graph */
-.orch-workers{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:.5rem}
-.orch-worker{border:1px dashed var(--border);border-radius:10px;padding:.8rem 1rem;
-  text-align:center;min-width:120px;position:relative;transition:all .5s}
-.orch-worker.active{border-color:var(--pink);border-style:solid;
-  box-shadow:0 0 16px rgba(227,208,216,0.1)}
-.orch-worker .worker-label{font-family:var(--font-mono);font-size:.7rem;color:var(--pink);
-  margin-bottom:.3rem;font-weight:600}
-.orch-worker .worker-nodes{font-size:.6rem;color:var(--text-dim);line-height:1.5}
-
-/* Status indicator */
-.orch-status{text-align:center;margin-top:1.5rem}
-.orch-status .status-text{font-family:var(--font-mono);font-size:.8rem;color:var(--mauve-light);
-  padding:.4rem 1rem;border:1px solid var(--border);border-radius:20px;display:inline-block;
-  transition:all .5s}
-.orch-status .status-text.running{color:var(--blue);border-color:rgba(198,210,237,0.4);
-  animation:status-pulse 1.5s ease-in-out infinite}
-.orch-status .status-text.done{color:var(--lavender);border-color:var(--lavender)}
-@keyframes status-pulse{0%,100%{opacity:1}50%{opacity:.5}}
-
-/* Step controls */
-.orch-controls{display:flex;justify-content:center;gap:1rem;margin-top:2rem}
-.orch-btn{font-family:var(--font-mono);font-size:.75rem;padding:.5rem 1.2rem;
-  border:1px solid var(--border);border-radius:8px;background:var(--bg-card);
-  color:var(--text-muted);cursor:pointer;transition:all .2s;letter-spacing:.5px}
-.orch-btn:hover{background:var(--bg-card-hover);border-color:var(--border-accent);color:var(--lavender)}
-.orch-btn.active{background:rgba(198,210,237,0.1);border-color:var(--blue);color:var(--blue)}
+/* ── Orchestrator ─────────────────────────────────────── */
+.orch-flow{max-width:900px;margin:0 auto;padding:2rem 0}
+.orch-row{display:flex;align-items:center;justify-content:center;gap:0}
+.o-node{min-width:130px;text-align:center;padding:1.1rem .9rem;border:1px solid var(--border);
+  border-radius:10px;background:var(--bg-surface);transition:all .4s;z-index:2;cursor:default}
+.o-node .o-icon{font-size:1.3rem;margin-bottom:.3rem}
+.o-node .o-name{font-family:var(--font-mono);font-size:.78rem;font-weight:500;color:var(--text)}
+.o-node .o-desc{font-size:.65rem;color:var(--text-dim);margin-top:.2rem;line-height:1.4}
+.o-node.active{border-color:var(--amber);box-shadow:0 0 20px var(--amber-dim)}
+.o-node.active .o-name{color:var(--amber)}
+.o-arrow{width:44px;height:2px;background:var(--border);position:relative;flex-shrink:0}
+.o-arrow::after{content:'';position:absolute;right:-1px;top:-4px;border:5px solid transparent;
+  border-left-color:var(--border)}
+.o-arrow.active{background:var(--amber)}.o-arrow.active::after{border-left-color:var(--amber)}
+.o-arrow-d{width:2px;height:36px;background:var(--border);margin:0 auto;position:relative}
+.o-arrow-d::after{content:'';position:absolute;bottom:-1px;left:-4px;border:5px solid transparent;
+  border-top-color:var(--border)}
+.o-arrow-d.active{background:var(--amber)}.o-arrow-d.active::after{border-top-color:var(--amber)}
+.o-arrow .pkt,.o-arrow-d .pkt{position:absolute;width:7px;height:7px;border-radius:50%;
+  background:var(--amber);opacity:0;box-shadow:0 0 6px var(--amber);z-index:3}
+.o-arrow .pkt{top:-2.5px;animation:pkt-h 1s ease-in-out forwards}
+.o-arrow-d .pkt{left:-2.5px;animation:pkt-v .7s ease-in-out forwards}
+@keyframes pkt-h{0%{left:0;opacity:0}15%{opacity:1}85%{opacity:1}100%{left:calc(100% - 7px);opacity:0}}
+@keyframes pkt-v{0%{top:0;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:calc(100% - 7px);opacity:0}}
+.o-workers{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;margin-top:.3rem}
+.o-worker{border:1px dashed var(--border);border-radius:8px;padding:.7rem .9rem;text-align:center;
+  min-width:110px;transition:all .4s}
+.o-worker.active{border-color:var(--blue);border-style:solid;box-shadow:0 0 12px rgba(96,165,250,.1)}
+.o-worker .wl{font-family:var(--font-mono);font-size:.65rem;color:var(--blue);font-weight:500}
+.o-worker .wn{font-size:.55rem;color:var(--text-dim);margin-top:.15rem}
+.o-rej-label{font-family:var(--font-mono);font-size:.6rem;color:var(--red);
+  padding:.15rem .5rem;border:1px solid rgba(248,113,113,.25);border-radius:5px;
+  background:rgba(248,113,113,.04);white-space:nowrap;display:inline-block}
+.o-telem-label{font-family:var(--font-mono);font-size:.6rem;color:var(--indigo);
+  padding:.15rem .5rem;border:1px solid rgba(129,140,248,.25);border-radius:5px;
+  background:rgba(129,140,248,.04);white-space:nowrap;display:inline-block}
+.o-status{text-align:center;margin-top:1.2rem}
+.o-status span{font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim);
+  padding:.3rem .8rem;border:1px solid var(--border);border-radius:16px;display:inline-block;transition:all .4s}
+.o-status span.running{color:var(--amber);border-color:rgba(240,184,102,.3);animation:s-pulse 1.5s ease-in-out infinite}
+.o-status span.done{color:var(--green);border-color:rgba(74,222,128,.3)}
+@keyframes s-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.o-controls{display:flex;justify-content:center;gap:.8rem;margin-top:1.5rem}
+.o-btn{font-family:var(--font-mono);font-size:.7rem;padding:.4rem 1rem;border:1px solid var(--border);
+  border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer;transition:all .2s}
+.o-btn:hover{border-color:var(--border-hover);color:var(--text)}
+.o-btn.active{border-color:var(--amber);color:var(--amber);background:var(--amber-dim)}
+.o-progress{display:flex;justify-content:center;gap:5px;margin-top:1rem}
+.o-progress i{width:5px;height:5px;border-radius:50%;background:var(--border);transition:all .3s;font-style:normal}
+.o-progress i.on{background:var(--amber);box-shadow:0 0 5px var(--amber-dim)}
+.o-progress i.past{background:var(--text-dim)}
 
 /* Phase 3 detail cards */
-.p3-detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:2rem}
-.p3-detail{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;
-  padding:1.5rem;transition:all .3s}
-.p3-detail:hover{border-color:var(--border-accent);background:var(--bg-card-hover)}
-.p3-detail h4{font-family:var(--font-mono);font-size:.85rem;color:var(--lavender);margin-bottom:.5rem}
-.p3-detail p{font-size:.8rem;color:var(--text-muted);line-height:1.7}
-.p3-detail .detail-tag{display:inline-block;font-family:var(--font-mono);font-size:.6rem;
-  color:var(--mauve);border:1px solid var(--border);border-radius:4px;padding:.1rem .4rem;
-  margin-bottom:.8rem;letter-spacing:.5px}
+.p3-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:3rem}
+.p3-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;
+  padding:1.3rem;transition:all .3s;cursor:default}
+.p3-card:hover{border-color:var(--border-hover);background:var(--bg-elevated)}
+.p3-card .tag{font-family:var(--font-mono);font-size:.58rem;color:var(--text-dim);
+  letter-spacing:1px;text-transform:uppercase;margin-bottom:.6rem}
+.p3-card h4{font-family:var(--font-display);font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:.4rem}
+.p3-card p{font-size:.78rem;color:var(--text-sec);line-height:1.7}
+
+/* ── Pipeline ─────────────────────────────────────────── */
+.pipe{display:flex;flex-direction:column;gap:0;max-width:840px;margin:0 auto}
+.pipe-layer{display:flex;align-items:center;gap:1.2rem;padding:1.3rem 1.5rem;
+  border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--border);
+  transition:all .3s;cursor:default}
+.pipe-layer:hover{background:var(--bg-surface);border-left-color:var(--amber)}
+.pipe-layer .p-num{font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim);width:22px;flex-shrink:0}
+.pipe-layer .p-name{font-family:var(--font-display);font-size:.85rem;color:var(--text);
+  min-width:180px;font-weight:500}
+.pipe-layer .p-desc{font-size:.78rem;color:var(--text-sec);flex:1}
+.pipe-layer .p-impl{font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim);
+  padding:.15rem .5rem;border:1px solid var(--border);border-radius:4px;white-space:nowrap}
+.pipe-conn{width:2px;height:1.2rem;background:var(--border);margin-left:3rem}
+
+/* ── Timeline (Accordion) ─────────────────────────────── */
+.tl-phase{margin-bottom:3rem}
+.tl-phase-label{font-family:var(--font-mono);font-size:.6rem;color:var(--amber);
+  letter-spacing:2px;text-transform:uppercase;margin-bottom:1rem;opacity:.6}
+.tl-item{border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem;
+  overflow:hidden;transition:border-color .3s}
+.tl-item:hover,.tl-item.open{border-color:var(--border-hover)}
+.tl-header{display:flex;align-items:center;gap:1rem;padding:1rem 1.3rem;cursor:pointer;
+  transition:background .2s;user-select:none}
+.tl-header:hover{background:var(--bg-surface)}
+.tl-header .tl-dot{width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0;
+  box-shadow:0 0 6px var(--amber-dim)}
+.tl-header .tl-tag{font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim);
+  min-width:50px;flex-shrink:0}
+.tl-header .tl-name{font-family:var(--font-display);font-size:.88rem;font-weight:600;color:var(--text);flex:1}
+.tl-header .tl-count{font-family:var(--font-mono);font-size:.65rem;color:var(--green);flex-shrink:0}
+.tl-header .tl-chevron{color:var(--text-dim);font-size:.7rem;transition:transform .3s;flex-shrink:0}
+.tl-item.open .tl-chevron{transform:rotate(90deg)}
+.tl-body{max-height:0;overflow:hidden;transition:max-height .4s var(--ease-out-expo)}
+.tl-body-inner{padding:0 1.3rem 1.3rem 3.4rem}
+.tl-body-inner p{font-size:.85rem;color:var(--text-sec);margin-bottom:1rem;line-height:1.7}
+/* code */
+.cb{background:var(--bg-deep);border:1px solid var(--border);border-radius:8px;padding:1.2rem;
+  font-family:var(--font-mono);font-size:.75rem;line-height:1.8;overflow-x:auto;color:var(--text-sec)}
+.cb-bar{display:flex;align-items:center;gap:.4rem;margin-bottom:.8rem;padding-bottom:.6rem;border-bottom:1px solid var(--border)}
+.cb-bar i{width:7px;height:7px;border-radius:50%;font-style:normal}
+.cb-bar i:nth-child(1){background:var(--red)}.cb-bar i:nth-child(2){background:var(--amber)}.cb-bar i:nth-child(3){background:var(--green)}
+.cb-bar span{font-size:.6rem;color:var(--text-dim);margin-left:auto}
+.cb pre{margin:0;font:inherit;white-space:pre;overflow-x:auto}
+.cb .kw{color:var(--amber)}.cb .str{color:var(--green)}.cb .fn{color:var(--blue)}.cb .cm{color:var(--text-dim)}.cb .nm{color:var(--red)}
+
+/* ── Bento Grid Modules ───────────────────────────────── */
+.bento{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.bento .b-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;
+  padding:1.5rem;transition:all .3s;cursor:default;position:relative;overflow:hidden}
+.bento .b-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--amber);transform:scaleX(0);transform-origin:left;transition:transform .4s}
+.bento .b-card:hover{border-color:var(--border-hover);background:var(--bg-elevated);
+  box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.bento .b-card:hover::before{transform:scaleX(1)}
+.bento .b-wide{grid-column:span 2}
+.bento .b-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;margin-bottom:1rem;font-family:var(--font-mono);font-size:.85rem;font-weight:700}
+.bento .b-card h3{font-family:var(--font-display);font-size:.9rem;font-weight:600;color:var(--text);margin-bottom:.5rem}
+.bento .b-card p{font-size:.8rem;color:var(--text-sec);line-height:1.7}
+.b-icon.amber{background:var(--amber-dim);color:var(--amber)}
+.b-icon.blue{background:rgba(96,165,250,.1);color:var(--blue)}
+.b-icon.green{background:rgba(74,222,128,.1);color:var(--green)}
+.b-icon.indigo{background:rgba(129,140,248,.1);color:var(--indigo)}
+.b-icon.dim{background:rgba(92,92,92,.12);color:var(--text-sec)}
+
+/* ── Module Dependency Block ──────────────────────────── */
+.dep-block{margin-top:2.5rem}
+
+/* ── Test Progress Rings ──────────────────────────────── */
+.test-section{text-align:center}
+.test-phase-label{font-family:var(--font-mono);font-size:.6rem;color:var(--text-dim);
+  letter-spacing:2px;text-transform:uppercase;margin:2rem 0 1rem}
+.test-rings{display:flex;justify-content:center;gap:2rem;flex-wrap:wrap}
+.ring-item{position:relative;width:110px;text-align:center}
+.ring-item svg{width:100px;height:100px;transform:rotate(-90deg)}
+.ring-bg{stroke:var(--border);stroke-width:6;fill:none}
+.ring-fill{stroke-width:6;fill:none;stroke-linecap:round;
+  transition:stroke-dashoffset 1.5s var(--ease-out-expo)}
+.ring-fill.amber{stroke:var(--amber)}.ring-fill.blue{stroke:var(--blue)}.ring-fill.green{stroke:var(--green)}
+.ring-val{position:absolute;top:50%;left:50%;transform:translate(-50%,-56%);
+  font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--text)}
+.ring-label{font-size:.68rem;color:var(--text-sec);margin-top:.3rem;line-height:1.3}
+.test-total{margin-top:3rem}
+.test-total .big{font-family:var(--font-display);font-size:3rem;font-weight:800;color:var(--text)}
+.test-total .big em{font-style:normal;color:var(--amber)}
+.test-total .sub{font-family:var(--font-mono);font-size:.7rem;color:var(--text-dim);
+  letter-spacing:2px;text-transform:uppercase;margin-top:.3rem}
 
 /* ── Footer ────────────────────────────────────────────── */
-footer{position:relative;z-index:1;padding:4rem 0;border-top:1px solid var(--border);text-align:center}
-footer p{font-size:.8rem;color:var(--text-dim)}
-footer a{color:var(--mauve-light)}
-footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:1.5rem}
+footer{position:relative;z-index:1;padding:4rem 0 2rem;border-top:1px solid var(--border)}
+footer .f-logo{font-family:var(--font-display);font-size:1.6rem;font-weight:800;
+  letter-spacing:4px;color:var(--text);opacity:.08;text-align:center;margin-bottom:2rem}
+footer .f-links{display:flex;justify-content:center;gap:2rem;margin-bottom:1.5rem}
+footer .f-links a{font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim);transition:color .2s}
+footer .f-links a:hover{color:var(--amber)}
+footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
+/* Marquee */
+.marquee{overflow:hidden;margin-top:2rem;border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);padding:.6rem 0}
+.marquee-inner{display:flex;gap:3rem;animation:scroll-x 20s linear infinite;width:max-content}
+.marquee-inner span{font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim);
+  letter-spacing:1px;white-space:nowrap}
+@keyframes scroll-x{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 
 /* ── Responsive ────────────────────────────────────────── */
 @media(max-width:1024px){
-  .card-grid{grid-template-columns:repeat(2,1fr)}
-  .pipeline-layer .layer-name{min-width:150px}
-  .pipeline-layer .layer-desc{min-width:0}
-}
-@media(max-width:1024px){
-  .p3-detail-grid{grid-template-columns:repeat(2,1fr)}
+  .bento{grid-template-columns:repeat(2,1fr)}
+  .bento .b-wide{grid-column:span 2}
+  .p3-grid{grid-template-columns:repeat(2,1fr)}
+  .pipe-layer .p-name{min-width:140px}
 }
 @media(max-width:768px){
-  .card-grid{grid-template-columns:1fr}
-  .test-grid{grid-template-columns:repeat(2,1fr)}
-  .p3-detail-grid{grid-template-columns:1fr}
-  .orch-row{flex-wrap:wrap;gap:0.5rem}
-  .orch-arrow{width:30px}
-  .orch-node{min-width:100px;padding:.8rem .6rem}
-  .orch-node .node-desc{display:none}
-  .hero .metrics{flex-direction:column;gap:1.5rem}
-  .arch-node:nth-child(odd),.arch-node:nth-child(even){padding:0 0 0 2rem;flex-direction:row}
-  .flow-line{left:0}
-  .arch-node .dot{left:0}
-  nav ul{display:none}
-  .pipeline-layer{flex-wrap:wrap;gap:.8rem}
-  .pipeline-layer .layer-name{min-width:auto;width:100%}
-  .pipeline-layer .layer-desc{width:100%}
-  .pipeline-layer .layer-impl{margin-left:auto}
+  .bento{grid-template-columns:1fr}
+  .bento .b-wide{grid-column:span 1}
+  .p3-grid{grid-template-columns:1fr}
+  .orch-row{flex-wrap:wrap;gap:.4rem}
+  .o-arrow{width:28px}
+  .o-node{min-width:90px;padding:.7rem .5rem}
+  .o-node .o-desc{display:none}
+  .hero-metrics{flex-direction:column;gap:1.2rem}
+  nav .nav-links{display:none}
+  .nav-toggle{display:flex}
+  .pipe-layer{flex-wrap:wrap;gap:.6rem}
+  .pipe-layer .p-name{min-width:auto;width:100%}
+  .pipe-layer .p-desc{width:100%}
+  .test-rings{gap:1.2rem}
+  .ring-item{width:90px}
+  .ring-item svg{width:80px;height:80px}
   section{padding:5rem 0}
   .container{padding:0 1.2rem}
 }
 @media(prefers-reduced-motion:reduce){
-  .reveal{transition:none;opacity:1;transform:none}
-  .bg-mesh .orb,.flow-line::after,.arch-node .dot::after{animation:none}
+  .fade-up,.fade-left,.fade-right{transition:none;opacity:1;transform:none}
+  .clip-reveal{clip-path:none;transition:none}
+  .cursor,.marquee-inner{animation:none}
+  body::before{display:none}
 }
 </style>
 </head>
 <body>
 
-<!-- BG Mesh -->
-<div class="bg-mesh">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-</div>
-
 <!-- Nav -->
-<nav>
+<nav id="main-nav">
   <div class="container">
-    <div class="logo">KAPPA <span>v0.3</span></div>
-    <ul>
-      <li><a href="#architecture">Architecture</a></li>
-      <li><a href="#orchestrator">Orchestrator</a></li>
-      <li><a href="#pipeline">Pipeline</a></li>
-      <li><a href="#development">Development</a></li>
-      <li><a href="#modules">Modules</a></li>
-      <li><a href="#tests">Tests</a></li>
+    <div class="logo"><span class="dot"></span> KAPPA</div>
+    <ul class="nav-links">
+      <li><a href="#architecture">architecture</a></li>
+      <li><a href="#orchestrator">orchestrator</a></li>
+      <li><a href="#pipeline">pipeline</a></li>
+      <li><a href="#timeline">timeline</a></li>
+      <li><a href="#modules">modules</a></li>
+      <li><a href="#tests">tests</a></li>
     </ul>
+    <button class="nav-toggle" onclick="toggleNav()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </nav>
+<div class="mobile-menu" id="mmenu">
+  <ul>
+    <li><a href="#architecture" onclick="closeNav()">architecture</a></li>
+    <li><a href="#orchestrator" onclick="closeNav()">orchestrator</a></li>
+    <li><a href="#pipeline" onclick="closeNav()">pipeline</a></li>
+    <li><a href="#timeline" onclick="closeNav()">timeline</a></li>
+    <li><a href="#modules" onclick="closeNav()">modules</a></li>
+    <li><a href="#tests" onclick="closeNav()">tests</a></li>
+  </ul>
+</div>
 
 <!-- Hero -->
 <section class="hero">
-  <div class="hero-content">
-    <div class="version reveal">PHASE 3 &mdash; MULTI-AGENT ORCHESTRATION</div>
-    <h1 class="reveal reveal-delay-1">KAPPA</h1>
-    <p class="subtitle reveal reveal-delay-2">
-      LLM의 확률적 출력을 결정론적으로 통제하는 자율 수행 에이전트 하네스.
-      예산 방어, 샌드박스 격리, 자가 치유 루프 위에 다중 에이전트 오케스트레이션과 Agent-RRM 텔레메트리를 구축.
-    </p>
-    <div class="metrics reveal reveal-delay-3">
-      <div class="metric">
-        <div class="metric-value" data-target="250">0</div>
-        <div class="metric-label">Tests Passing</div>
+  <div class="container">
+    <div class="hero-inner">
+      <div class="eyebrow fade-up">Phase 3 — Multi-Agent Orchestration</div>
+      <h1 class="fade-up" data-delay="1"><em>Kappa</em> Agent<br>Harness</h1>
+      <p class="subtitle fade-up" data-delay="2">
+        LLM의 확률적 출력을 결정론적으로 통제하는 자율 수행 에이전트 하네스.
+        예산 방어, 샌드박스 격리, 자가 치유 루프 위에 다중 에이전트 오케스트레이션 구축.
+      </p>
+
+      <div class="terminal fade-up" data-delay="3">
+        <div class="terminal-bar">
+          <div class="td td-r"></div><div class="td td-y"></div><div class="td td-g"></div>
+          <span>kappa — bash</span>
+        </div>
+        <div class="terminal-body" id="term-body"></div>
       </div>
-      <div class="metric">
-        <div class="metric-value" data-target="9">0</div>
-        <div class="metric-label">Safety Layers</div>
-      </div>
-      <div class="metric">
-        <div class="metric-value" data-target="5">0</div>
-        <div class="metric-label">GEODE Layers</div>
+
+      <div class="hero-metrics fade-up" data-delay="4">
+        <div class="hero-metric"><div class="val" data-target="250">0</div><div class="lbl">Tests Passing</div></div>
+        <div class="hero-metric"><div class="val" data-target="9">0</div><div class="lbl">Safety Layers</div></div>
+        <div class="hero-metric"><div class="val" data-target="5">0</div><div class="lbl">GEODE Layers</div></div>
       </div>
     </div>
   </div>
-  <div class="scroll-indicator">
-    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-  </div>
 </section>
 
-<!-- Architecture Overview -->
+<!-- Architecture -->
 <section id="architecture">
   <div class="container">
-    <div class="section-label reveal">System Overview</div>
-    <div class="section-title reveal">Hierarchical Multi-Agent Architecture</div>
-    <p class="section-desc reveal">
-      상위 Orchestrator Super-Graph가 목표를 분해하고 하위 Worker(SelfHealingGraph)를 병렬 통제.
+    <div class="sec-eyebrow fade-up">System Overview</div>
+    <div class="sec-title fade-up" data-delay="1">Self-Healing Graph Architecture</div>
+    <p class="sec-desc fade-up" data-delay="2">
+      상위 Orchestrator Super-Graph가 목표를 분해하고 하위 Worker를 병렬 통제.
       Quality Gate가 산출물을 검수하며, SessionLane이 자원 충돌을 방지합니다.
     </p>
-
-    <!-- Flow Diagram SVG (V2) -->
-    <div class="flow-diagram reveal">
+    <div class="arch-wrap fade-up" data-delay="3">
       <svg viewBox="0 0 1060 360" xmlns="http://www.w3.org/2000/svg">
-        <!-- Main path -->
-        <path class="flow-path-active" d="M 170 80 L 290 80"/>
-        <path class="flow-path-active" d="M 410 80 L 530 80"/>
-        <path class="flow-path-active" d="M 650 80 L 770 80"/>
-        <path class="flow-path-active" d="M 890 80 L 960 80"/>
-        <!-- Tool branch from parser -->
-        <path class="flow-path-active" d="M 350 110 L 350 170 L 530 170"/>
-        <!-- Tool success to END -->
-        <path class="flow-path-active" d="M 650 170 L 960 170 L 960 90"/>
-        <!-- Heal-back paths -->
-        <path class="flow-path" d="M 350 110 L 350 230 L 100 230 L 100 110"/>
-        <path class="flow-path" d="M 590 110 L 590 265 L 100 265 L 100 110"/>
-        <path class="flow-path" d="M 830 110 L 830 300 L 100 300 L 100 110"/>
-        <!-- Tool error heal-back -->
-        <path class="flow-path" d="M 590 200 L 590 335 L 100 335 L 100 110"/>
-
-        <!-- Coder node -->
+        <path class="edge-active" d="M 170 80 L 290 80"/>
+        <path class="edge-active" d="M 410 80 L 530 80"/>
+        <path class="edge-active" d="M 650 80 L 770 80"/>
+        <path class="edge-active" d="M 890 80 L 960 80"/>
+        <path class="edge-active" d="M 350 110 L 350 170 L 530 170"/>
+        <path class="edge-active" d="M 650 170 L 960 170 L 960 90"/>
+        <path class="edge" d="M 350 110 L 350 230 L 100 230 L 100 110"/>
+        <path class="edge" d="M 590 110 L 590 265 L 100 265 L 100 110"/>
+        <path class="edge" d="M 830 110 L 830 300 L 100 300 L 100 110"/>
+        <path class="edge" d="M 590 200 L 590 335 L 100 335 L 100 110"/>
         <rect class="node-box" x="50" y="50" width="120" height="60"/>
-        <text x="110" y="76" text-anchor="middle" font-size="13" font-weight="600">CODER</text>
-        <text class="label-small" x="110" y="96" text-anchor="middle">BudgetGate</text>
-
-        <!-- Parser node -->
+        <text class="n-label" x="110" y="76" text-anchor="middle">CODER</text>
+        <text class="n-sub" x="110" y="96" text-anchor="middle">BudgetGate</text>
         <rect class="node-box" x="290" y="50" width="120" height="60"/>
-        <text x="350" y="76" text-anchor="middle" font-size="13" font-weight="600">PARSER</text>
-        <text class="label-small" x="350" y="96" text-anchor="middle">XML + Semantic</text>
-
-        <!-- Linter node -->
+        <text class="n-label" x="350" y="76" text-anchor="middle">PARSER</text>
+        <text class="n-sub" x="350" y="96" text-anchor="middle">XML + Semantic</text>
         <rect class="node-box" x="530" y="50" width="120" height="60"/>
-        <text x="590" y="76" text-anchor="middle" font-size="13" font-weight="600">LINTER</text>
-        <text class="label-small" x="590" y="96" text-anchor="middle">AST Check</text>
-
-        <!-- Sandbox node -->
+        <text class="n-label" x="590" y="76" text-anchor="middle">LINTER</text>
+        <text class="n-sub" x="590" y="96" text-anchor="middle">AST Check</text>
         <rect class="node-box" x="770" y="50" width="120" height="60"/>
-        <text x="830" y="76" text-anchor="middle" font-size="13" font-weight="600">SANDBOX</text>
-        <text class="label-small" x="830" y="96" text-anchor="middle">Docker</text>
-
-        <!-- Tool node (Phase 2) -->
-        <rect class="node-box" x="530" y="140" width="120" height="60" style="stroke:var(--pink)"/>
-        <text x="590" y="166" text-anchor="middle" font-size="13" font-weight="600" fill="var(--pink)">TOOL</text>
-        <text class="label-small" x="590" y="186" text-anchor="middle">Registry</text>
-
-        <!-- Main path arrows -->
-        <polygon points="286,76 292,80 286,84" fill="var(--blue)"/>
-        <polygon points="526,76 532,80 526,84" fill="var(--blue)"/>
-        <polygon points="766,76 772,80 766,84" fill="var(--blue)"/>
-        <polygon points="956,76 962,80 956,84" fill="var(--blue)"/>
-        <!-- Tool branch arrow -->
-        <polygon points="526,166 532,170 526,174" fill="var(--pink)"/>
-
-        <!-- Loop-back labels -->
-        <text class="label-tiny" x="225" y="225">parse_error</text>
-        <text class="label-tiny" x="345" y="260">lint_error</text>
-        <text class="label-tiny" x="465" y="295">exit_code != 0</text>
-        <text class="label-tiny" x="465" y="330">tool_error</text>
-        <!-- Branch label -->
-        <text class="label-tiny" x="380" y="145">&lt;tool_call&gt;</text>
-        <text class="label-tiny" x="440" y="75">&lt;action&gt;</text>
-
-        <!-- Return arrows -->
-        <polygon points="104,114 100,108 96,114" fill="var(--mauve-light)"/>
-
-        <!-- Success node -->
-        <rect class="node-box" x="970" y="55" width="80" height="50" style="stroke:var(--blue)"/>
-        <text x="1010" y="78" text-anchor="middle" font-size="12" font-weight="600" fill="var(--blue)">SUCCESS</text>
-        <text class="label-tiny" x="1010" y="94" text-anchor="middle" style="fill:var(--blue)">exit_code = 0</text>
+        <text class="n-label" x="830" y="76" text-anchor="middle">SANDBOX</text>
+        <text class="n-sub" x="830" y="96" text-anchor="middle">Docker</text>
+        <rect class="node-box" x="530" y="140" width="120" height="60" style="stroke:var(--blue)"/>
+        <text class="n-label" x="590" y="166" text-anchor="middle" fill="var(--blue)">TOOL</text>
+        <text class="n-sub" x="590" y="186" text-anchor="middle">Registry</text>
+        <polygon points="286,76 292,80 286,84" fill="var(--amber)"/>
+        <polygon points="526,76 532,80 526,84" fill="var(--amber)"/>
+        <polygon points="766,76 772,80 766,84" fill="var(--amber)"/>
+        <polygon points="956,76 962,80 956,84" fill="var(--amber)"/>
+        <polygon points="526,166 532,170 526,174" fill="var(--blue)"/>
+        <text class="n-tiny" x="225" y="225">parse_error</text>
+        <text class="n-tiny" x="345" y="260">lint_error</text>
+        <text class="n-tiny" x="465" y="295">exit_code != 0</text>
+        <text class="n-tiny" x="465" y="330">tool_error</text>
+        <text class="n-tiny" x="380" y="145">&lt;tool_call&gt;</text>
+        <text class="n-tiny" x="440" y="75">&lt;action&gt;</text>
+        <polygon points="104,114 100,108 96,114" fill="var(--text-dim)"/>
+        <rect class="node-box" x="970" y="55" width="80" height="50" style="stroke:var(--green)"/>
+        <text class="n-label" x="1010" y="78" text-anchor="middle" fill="var(--green)">SUCCESS</text>
+        <text class="n-tiny" x="1010" y="94" text-anchor="middle" style="fill:var(--green)">exit_code = 0</text>
+        <!-- Particles on main path -->
+        <circle class="arch-particle" r="3"><animateMotion dur="4s" repeatCount="indefinite" path="M 170 80 L 290 80 L 410 80 L 530 80 L 650 80 L 770 80 L 890 80 L 960 80" begin="0s"/></circle>
+        <circle class="arch-particle" r="2.5" opacity=".5"><animateMotion dur="4s" repeatCount="indefinite" path="M 170 80 L 290 80 L 410 80 L 530 80 L 650 80 L 770 80 L 890 80 L 960 80" begin="1.3s"/></circle>
+        <circle class="arch-particle p-blue" r="2.5"><animateMotion dur="3s" repeatCount="indefinite" path="M 350 110 L 350 170 L 530 170 L 650 170 L 960 170 L 960 90" begin="0.5s"/></circle>
+        <circle class="arch-particle p-green" r="3"><animateMotion dur="2s" repeatCount="indefinite" path="M 960 80 L 1010 78" begin="0s"/></circle>
       </svg>
     </div>
   </div>
 </section>
 
-<!-- Orchestrator Deep Dive -->
-<section id="orchestrator" style="background:rgba(231,230,247,0.02)">
+<!-- Orchestrator -->
+<section id="orchestrator" style="background:var(--bg)">
   <div class="container">
-    <div class="section-label reveal">Phase 3 Deep Dive</div>
-    <div class="section-title reveal">Orchestrator Super-Graph Flow</div>
-    <p class="section-desc reveal">
+    <div class="sec-eyebrow fade-up">Phase 3 Deep Dive</div>
+    <div class="sec-title fade-up" data-delay="1">Orchestrator Super-Graph</div>
+    <p class="sec-desc fade-up" data-delay="2">
       거대 목표가 Planner에서 DAG로 분해되고, Worker가 병렬 실행하며,
       Reviewer가 품질을 검수하는 전체 과정을 단계별로 확인하세요.
     </p>
-
-    <!-- Animated Flow -->
-    <div class="orch-flow reveal" id="orch-flow">
-      <!-- Main row: Planner → Dispatcher → Reviewer → Finalizer -->
-      <div class="orch-row" id="orch-main-row">
-        <div class="orch-node" id="onode-planner">
-          <div class="node-icon">&#128203;</div>
-          <div class="node-name">PLANNER</div>
-          <div class="node-desc">목표 &rarr; DAG 분해<br>LLM JSON 출력</div>
-        </div>
-        <div class="orch-arrow" id="oarrow-1"><div class="packet" id="opkt-1"></div></div>
-        <div class="orch-node" id="onode-dispatcher">
-          <div class="node-icon">&#128640;</div>
-          <div class="node-name">DISPATCHER</div>
-          <div class="node-desc">ThreadPool 병렬<br>SessionLane 직렬화</div>
-        </div>
-        <div class="orch-arrow" id="oarrow-2"><div class="packet" id="opkt-2"></div></div>
-        <div class="orch-node" id="onode-reviewer">
-          <div class="node-icon">&#128269;</div>
-          <div class="node-name">REVIEWER</div>
-          <div class="node-desc">Quality Gate<br>approve / reject</div>
-        </div>
-        <div class="orch-arrow" id="oarrow-3"><div class="packet" id="opkt-3"></div></div>
-        <div class="orch-node" id="onode-finalizer">
-          <div class="node-icon">&#9989;</div>
-          <div class="node-name">FINALIZER</div>
-          <div class="node-desc">결과 병합<br>최종 출력</div>
-        </div>
+    <div class="orch-flow fade-up" data-delay="3" id="orch-flow">
+      <div class="orch-row">
+        <div class="o-node" id="on-plan"><div class="o-icon">&#128203;</div><div class="o-name">PLANNER</div><div class="o-desc">목표 → DAG 분해</div></div>
+        <div class="o-arrow" id="oa-1"><div class="pkt" id="op-1"></div></div>
+        <div class="o-node" id="on-disp"><div class="o-icon">&#128640;</div><div class="o-name">DISPATCHER</div><div class="o-desc">ThreadPool 병렬</div></div>
+        <div class="o-arrow" id="oa-2"><div class="pkt" id="op-2"></div></div>
+        <div class="o-node" id="on-rev"><div class="o-icon">&#128269;</div><div class="o-name">REVIEWER</div><div class="o-desc">Quality Gate</div></div>
+        <div class="o-arrow" id="oa-3"><div class="pkt" id="op-3"></div></div>
+        <div class="o-node" id="on-fin"><div class="o-icon">&#9989;</div><div class="o-name">FINALIZER</div><div class="o-desc">결과 병합</div></div>
       </div>
-
-      <!-- Worker sub-graphs below Dispatcher -->
-      <div class="orch-arrow-down" id="oarrow-down" style="margin-top:0"><div class="packet" id="opkt-down"></div></div>
-      <div class="orch-workers" id="orch-workers">
-        <div class="orch-worker" id="oworker-1">
-          <div class="worker-label">Worker #1</div>
-          <div class="worker-nodes">coder &rarr; parser &rarr; linter &rarr; sandbox</div>
-        </div>
-        <div class="orch-worker" id="oworker-2">
-          <div class="worker-label">Worker #2</div>
-          <div class="worker-nodes">coder &rarr; parser &rarr; linter &rarr; sandbox</div>
-        </div>
-        <div class="orch-worker" id="oworker-3">
-          <div class="worker-label">Worker #3</div>
-          <div class="worker-nodes">coder &rarr; parser &rarr; linter &rarr; sandbox</div>
-        </div>
+      <div class="o-arrow-d" id="oa-d" style="margin-top:0"><div class="pkt" id="op-d"></div></div>
+      <div class="o-workers" id="o-workers">
+        <div class="o-worker" id="ow-1"><div class="wl">Worker #1</div><div class="wn">coder → parser → linter → sandbox</div></div>
+        <div class="o-worker" id="ow-2"><div class="wl">Worker #2</div><div class="wn">coder → parser → linter → sandbox</div></div>
+        <div class="o-worker" id="ow-3"><div class="wl">Worker #3</div><div class="wn">coder → parser → linter → sandbox</div></div>
       </div>
-
-      <!-- Reject loop label -->
-      <div style="text-align:center;margin-top:1.2rem" id="orch-reject-area">
-        <div class="orch-reject-label" id="orch-reject-label" style="opacity:0;transition:opacity .5s">
-          &#8634; REJECTED &mdash; critique 피드백과 함께 Dispatcher로 재순환
-        </div>
+      <div style="text-align:center;margin-top:1rem">
+        <div class="o-rej-label" id="o-rej" style="opacity:0;transition:opacity .4s">&#8634; REJECTED — critique 피드백과 함께 Dispatcher로 재순환</div>
       </div>
-
-      <!-- Telemetry indicator -->
-      <div style="text-align:center;margin-top:1rem" id="orch-telemetry-area">
-        <div class="orch-reject-label" id="orch-telemetry-label" style="opacity:0;transition:opacity .5s;border-color:rgba(198,210,237,0.3);color:var(--blue)">
-          &#128202; TelemetryManager &mdash; think / critique / score JSONL 기록
-        </div>
+      <div style="text-align:center;margin-top:.6rem">
+        <div class="o-telem-label" id="o-tel" style="opacity:0;transition:opacity .4s">&#128202; TelemetryManager — think / critique / score JSONL 기록</div>
       </div>
-
-      <!-- Status -->
-      <div class="orch-status">
-        <span class="status-text" id="orch-status-text">READY</span>
+      <div class="o-status"><span id="o-st">READY</span></div>
+      <div class="o-controls">
+        <button class="o-btn" id="o-btn-auto" onclick="oAutoPlay()">▶ Auto</button>
+        <button class="o-btn" onclick="oStep()">⏩ Step</button>
+        <button class="o-btn" onclick="oReset()">↺ Reset</button>
       </div>
+      <div class="o-progress" id="o-prog"></div>
+    </div>
 
-      <!-- Controls -->
-      <div class="orch-controls">
-        <button class="orch-btn" id="orch-btn-auto" onclick="orchAutoPlay()">&#9654; Auto Play</button>
-        <button class="orch-btn" id="orch-btn-step" onclick="orchStepOnce()">&#9197; Step</button>
-        <button class="orch-btn" id="orch-btn-reset" onclick="orchReset()">&#8635; Reset</button>
+    <div class="p3-grid fade-up">
+      <div class="p3-card"><div class="tag">Planner</div><h4>DAG 분해 전략</h4><p>LLM에게 목표를 전달하면 depends_on으로 연결된 SubTask DAG를 JSON으로 반환. 최대 10개 서브태스크 제한.</p></div>
+      <div class="p3-card"><div class="tag">Quality Gate</div><h4>Reviewer 검수 루프</h4><p>Reviewer LLM이 approve/reject 판정. 거부 시 critique가 워커에 주입. 누적 3회 초과 시 실패.</p></div>
+      <div class="p3-card"><div class="tag">Telemetry</div><h4>Agent-RRM 궤적 기록</h4><p>think(추론), critique(비평), score(0.0~1.0)를 JSONL에 누적하여 사후 분석 지원.</p></div>
+      <div class="p3-card"><div class="tag">Session Lane</div><h4>Per-Key 자원 직렬화</h4><p>SyncSessionLane이 동일 키 동시 접근 직렬화. 메타 Lock + 개별 Lock 2계층.</p></div>
+      <div class="p3-card"><div class="tag">Jitter Backoff</div><h4>Decorrelated Jitter</h4><p>AWS 권장 알고리즘으로 Thundering Herd를 Jitter로 분산.</p></div>
+      <div class="p3-card"><div class="tag">Super-Graph</div><h4>계층적 그래프 패턴</h4><p>OrchestratorGraph가 SelfHealingGraph를 블랙박스 워커로 소비. Additive-Only 설계.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Pipeline -->
+<section id="pipeline">
+  <div class="container">
+    <div class="sec-eyebrow fade-up">GEODE Reference Model</div>
+    <div class="sec-title fade-up" data-delay="1">5-Layer Verification Pipeline</div>
+    <p class="sec-desc fade-up" data-delay="2">에이전트의 모든 출력은 5개의 결정론적 관문을 순차적으로 통과해야 합니다.</p>
+    <div class="pipe">
+      <div class="pipe-layer fade-left"><span class="p-num">L1</span><span class="p-name">Atomic XML Matching</span><span class="p-desc">LLM 출력이 &lt;think&gt;/&lt;action&gt;/&lt;tool_call&gt; 구조를 준수하는지 검증</span><span class="p-impl">parse_llm_output()</span></div>
+      <div class="pipe-conn"></div>
+      <div class="pipe-layer fade-left" data-delay="1"><span class="p-num">L2</span><span class="p-name">Syntactic Broom</span><span class="p-desc">AST 파싱으로 문법 오류를 샌드박스 전송 전 사전 차단</span><span class="p-impl">lint_code()</span></div>
+      <div class="pipe-conn"></div>
+      <div class="pipe-layer fade-left" data-delay="2"><span class="p-num">L3</span><span class="p-name">Semantic Defense</span><span class="p-desc">Jaccard 유사도 기반 의미론적 반복 감지 및 조기 차단</span><span class="p-impl">SemanticLoopDetector</span></div>
+      <div class="pipe-conn"></div>
+      <div class="pipe-layer fade-left" data-delay="3"><span class="p-num">L4</span><span class="p-name">Self-Healing</span><span class="p-desc">실행 오류 시 stderr + 원본 목표로 자동 교정 루프</span><span class="p-impl">conditional_edges</span></div>
+      <div class="pipe-conn"></div>
+      <div class="pipe-layer fade-left" data-delay="4"><span class="p-num">L5</span><span class="p-name">Runtime Smoke Test</span><span class="p-desc">격리 컨테이너에서 제한 시간 내 동작 물리적 증명</span><span class="p-impl">SandboxExecutor</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Timeline -->
+<section id="timeline" style="background:var(--bg)">
+  <div class="container">
+    <div class="sec-eyebrow fade-up">Development Track</div>
+    <div class="sec-title fade-up" data-delay="1">Implementation Timeline</div>
+    <p class="sec-desc fade-up" data-delay="2">통제 없는 자율성은 재앙이기 때문입니다. Phase 1에서 방어막을, Phase 2에서 인지적 자율성을, Phase 3에서 오케스트레이션을 구축했습니다.</p>
+
+    <div class="tl-phase fade-up" data-delay="3">
+      <div class="tl-phase-label">Phase 1 — Deterministic Guardrails</div>
+      <div class="tl-item" data-code='<span class="kw">if</span> self.is_exceeded:\n    self._tripped = <span class="kw">True</span>\n    <span class="kw">raise</span> <span class="fn">BudgetExceededException</span>(\n        <span class="str">f"Budget exceeded: {self.total_tokens} tokens"</span>\n    )' data-file="budget/tracker.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T1</span><span class="tl-name">Budget Gate & Circuit Breaker</span><span class="tl-count">9 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>LLM API 통신부 최상단에 재무적 방어선 구축. 세션별 토큰/비용 이중 추적, 한도 초과 시 회로 차단기가 영구적으로 트립되어 모든 후속 API 호출을 물리적으로 차단합니다.</p></div></div>
+      </div>
+      <div class="tl-item" data-code='container = self._client.containers.<span class="fn">run</span>(\n    image=image,\n    command=[<span class="str">"python"</span>, <span class="str">"-c"</span>, code],\n    mem_limit=<span class="str">f"{mem_limit}m"</span>,\n    network_disabled=<span class="kw">True</span>,\n    detach=<span class="kw">True</span>,\n)' data-file="sandbox/executor.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T2</span><span class="tl-name">Deterministic Sandbox</span><span class="tl-count">21 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>에이전트 생성 코드를 호스트 OS에서 절대 실행하지 않는 격리 환경. 일회성 Docker 컨테이너에서 메모리 제한, 네트워크 차단, 타임아웃을 강제하고 실행 후 즉시 파괴합니다.</p></div></div>
+      </div>
+      <div class="tl-item" data-code='graph.<span class="fn">set_entry_point</span>(<span class="str">"coder"</span>)\ngraph.<span class="fn">add_edge</span>(<span class="str">"coder"</span>, <span class="str">"parser"</span>)\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"parser"</span>, route_after_parse)\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"linter"</span>, route_after_lint)\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"sandbox"</span>, route_after_sandbox)' data-file="graph/graph.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T3</span><span class="tl-name">Self-Healing Loop</span><span class="tl-count">17 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>LangGraph 상태 머신. 코드 생성 → XML 파싱 → AST 린트 → 샌드박스 실행의 파이프라인에서 실패 시 에러 트레이스를 피드백으로 자동 재시도. 최대 재시도 횟수로 무한 루프를 방지합니다.</p></div></div>
       </div>
     </div>
 
-    <!-- Phase 3 Detail Cards -->
-    <div class="p3-detail-grid reveal" style="margin-top:4rem">
-      <div class="p3-detail">
-        <div class="detail-tag">PLANNER</div>
-        <h4>DAG 분해 전략</h4>
-        <p>
-          LLM에게 목표를 전달하면 <code>depends_on</code>으로 연결된 SubTask DAG를 JSON으로 반환합니다.
-          독립 태스크는 병렬 실행되고, 의존성이 있는 태스크는 선행 완료 후 순차 실행됩니다.
-          최대 <strong>10개</strong> 서브태스크로 제한하여 폭발적 분해를 방지합니다.
-        </p>
+    <div class="tl-phase fade-up">
+      <div class="tl-phase-label">Phase 2 — Cognitive Autonomy</div>
+      <div class="tl-item" data-code='target = (self._root / relative).<span class="fn">resolve</span>()\n<span class="kw">try</span>:\n    target.<span class="fn">relative_to</span>(self._root)\n<span class="kw">except</span> <span class="fn">ValueError</span>:\n    <span class="kw">raise</span> <span class="fn">ValueError</span>(<span class="str">"Path traversal blocked"</span>)' data-file="memory/vfs.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T4</span><span class="tl-name">VFS Memory — 격리 파일시스템</span><span class="tl-count">34 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>에이전트 전용 격리 작업 디렉토리에서 학습 내용을 기록하고 검색하는 VFSManager. 경로 이탈 공격(../)을 원천 차단하며, 핵심 파일은 시스템 프롬프트에 자동 주입됩니다.</p></div></div>
       </div>
-      <div class="p3-detail">
-        <div class="detail-tag">QUALITY GATE</div>
-        <h4>Reviewer 검수 루프</h4>
-        <p>
-          Reviewer LLM이 각 워커 산출물을 <strong>approve/reject</strong>로 판정합니다.
-          거부 시 <code>critique</code>(개선 사유)가 워커 프롬프트에 주입되어 재시도됩니다.
-          누적 거부 <strong>3회</strong> 초과 시 전체 오케스트레이션이 실패 처리됩니다.
-        </p>
+      <div class="tl-item" data-code='<span class="kw">class</span> <span class="fn">ToolRegistry</span>:\n    <span class="kw">def</span> <span class="fn">execute</span>(self, name, **kwargs):\n        tool = self.<span class="fn">get</span>(name)\n        <span class="kw">if</span> self._tracker:\n            self._tracker.<span class="fn">record_usage</span>(\n                prompt_tokens=self._cost_per_tool_call,\n                completion_tokens=<span class="nm">0</span>)\n        <span class="kw">return</span> tool.<span class="fn">execute</span>(**kwargs)' data-file="tools/registry.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T5</span><span class="tl-name">MCP Tool Registry & Bridge</span><span class="tl-count">30 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>BaseTool 프로토콜 기반 플러그 앤 플레이 도구 레지스트리. read_memory, write_memory 시스템 도구를 기본 제공하며, 모든 도구 실행 비용은 BudgetTracker를 경유하여 추적됩니다.</p></div></div>
       </div>
-      <div class="p3-detail">
-        <div class="detail-tag">TELEMETRY</div>
-        <h4>Agent-RRM 궤적 기록</h4>
-        <p>
-          Reviewer의 모든 판정이 <code>TrajectoryRecord</code>로 JSONL에 누적됩니다.
-          <strong>think</strong>(추론), <strong>critique</strong>(비평), <strong>score</strong>(0.0~1.0)를
-          기록하여 사후 분석과 에이전트 성능 추적이 가능합니다.
-        </p>
+      <div class="tl-item" data-code='avg_sim = self.<span class="fn">_average_pairwise_similarity</span>()\n<span class="kw">if</span> avg_sim >= self._threshold:\n    <span class="kw">raise</span> <span class="fn">SemanticLoopException</span>(\n        <span class="str">f"Semantic loop: {avg_sim:.2f} >= {self._threshold}"</span>\n    )' data-file="defense/semantic.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T6</span><span class="tl-name">Semantic Loop Detector</span><span class="tl-count">24 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>최근 N개의 think 내용과 도구 호출 인자의 Jaccard 유사도를 슬라이딩 윈도우로 계산. 동일한 헛발질이 임계치 이상 반복되면 조기 차단합니다.</p></div></div>
       </div>
-      <div class="p3-detail">
-        <div class="detail-tag">SESSION LANE</div>
-        <h4>Per-Key 자원 직렬화</h4>
-        <p>
-          Dispatcher가 워커를 <code>ThreadPoolExecutor</code>로 병렬 실행할 때,
-          <code>SyncSessionLane</code>이 동일 키(task ID)에 대한 동시 접근을 직렬화합니다.
-          메타 Lock이 키 생성을 보호하고, 개별 Lock이 실행을 직렬화하는 2계층 구조입니다.
-        </p>
+      <div class="tl-item" data-code='graph.<span class="fn">add_node</span>(<span class="str">"tool"</span>, self._tool_node)\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"parser"</span>, route_after_parse)\n<span class="cm"># parser → linter (code) | tool (tool_call) | coder (error)</span>\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"tool"</span>, route_after_tool)' data-file="graph/graph.py (V2)">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T7</span><span class="tl-name">Self-Healing V2: Tool Branching</span><span class="tl-count">20 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>파서가 &lt;action&gt;과 &lt;tool_call&gt;을 분기하여 코드 실행(Sandbox)과 도구 호출(Tool)을 조건부 엣지로 분리. VFS 메모리 컨텍스트 자동 주입, 의미론적 감지기 통합으로 Graph V2 완성.</p></div></div>
       </div>
-      <div class="p3-detail">
-        <div class="detail-tag">JITTER BACKOFF</div>
-        <h4>Decorrelated Jitter 재시도</h4>
-        <p>
-          AWS 권장 알고리즘: <code>sleep = min(cap, random(base, prev&times;3))</code>.
-          동시 다발 워커의 재시도가 같은 시점에 몰리는 <strong>Thundering Herd</strong>를
-          Jitter로 분산시켜 시스템 안정성을 확보합니다.
-        </p>
+    </div>
+
+    <div class="tl-phase fade-up">
+      <div class="tl-phase-label">Phase 3 — Multi-Agent Orchestration</div>
+      <div class="tl-item" data-code='<span class="kw">with</span> self._meta_lock:\n    <span class="kw">if</span> key <span class="kw">not in</span> self._locks:\n        self._locks[key] = threading.<span class="fn">Lock</span>()\nlock = self._locks[key]\nacquired = lock.<span class="fn">acquire</span>(timeout=self._timeout)\n<span class="kw">if not</span> acquired:\n    <span class="kw">raise</span> <span class="fn">SessionLaneTimeout</span>(<span class="str">f"timeout for {key}"</span>)' data-file="infra/session_lane.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T8</span><span class="tl-name">SessionLane & Jitter Backoff</span><span class="tl-count">32 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>다중 워커의 자원 경합을 막는 Per-key 세마포어와 Thundering Herd 현상을 방지하는 Decorrelated Jitter 지수적 백오프. ThreadPoolExecutor와 asyncio 환경 모두 지원합니다.</p></div></div>
       </div>
-      <div class="p3-detail">
-        <div class="detail-tag">SUPER-GRAPH</div>
-        <h4>계층적 그래프 패턴</h4>
-        <p>
-          <code>OrchestratorGraph</code>(Super-Graph)가 <code>SelfHealingGraph</code>(Sub-Graph)를
-          블랙박스 워커로 소비합니다. 단방향 의존: Orchestrator &rarr; Worker.
-          기존 Phase 1/2 코드 <strong>수정 0건</strong> &mdash; 완전한 Additive-Only 설계.
-        </p>
+      <div class="tl-item" data-code='graph.<span class="fn">add_node</span>(<span class="str">"planner"</span>, self._planner_node)\ngraph.<span class="fn">add_node</span>(<span class="str">"dispatcher"</span>, self._dispatcher_node)\ngraph.<span class="fn">add_node</span>(<span class="str">"reviewer"</span>, self._reviewer_node)\ngraph.<span class="fn">add_node</span>(<span class="str">"finalizer"</span>, self._finalizer_node)\n<span class="cm"># reviewer → finalizer | dispatcher (rejected) | failed</span>\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"reviewer"</span>, route_after_review)' data-file="graph/orchestrator.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T9</span><span class="tl-name">Orchestrator Super-Graph</span><span class="tl-count">39 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>거대 목표를 DAG로 분해하는 Planner, SelfHealingGraph 워커를 병렬 실행하는 Dispatcher, 산출물을 검수하는 Reviewer(Quality Gate), 결과를 통합하는 Finalizer로 구성된 LangGraph Super-Graph.</p></div></div>
+      </div>
+      <div class="tl-item" data-code='<span class="kw">def</span> <span class="fn">record</span>(self, trajectory: <span class="fn">TrajectoryRecord</span>):\n    line = json.<span class="fn">dumps</span>(<span class="fn">asdict</span>(trajectory))\n    <span class="kw">with</span> self._lock:\n        <span class="kw">with</span> <span class="fn">open</span>(self._log_path, <span class="str">"a"</span>) <span class="kw">as</span> f:\n            f.<span class="fn">write</span>(line + <span class="str">"\\n"</span>)' data-file="telemetry/manager.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T10</span><span class="tl-name">Agent-RRM Telemetry Pipeline</span><span class="tl-count">32 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>워커의 추론 궤적(think), Reviewer 비평(critique), 종합 점수(score)를 JSONL로 누적 기록하는 옵저버 패턴 수집기. 스레드 안전 보장, 통계 요약(summary()) 제공.</p></div></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- GEODE Pipeline -->
-<section id="pipeline" style="background:rgba(231,230,247,0.02)">
+<!-- Modules -->
+<section id="modules">
   <div class="container">
-    <div class="section-label reveal">GEODE Reference Model</div>
-    <div class="section-title reveal">5-Layer Verification Pipeline</div>
-    <p class="section-desc reveal">
-      에이전트의 모든 출력은 5개의 결정론적 관문을 순차적으로 통과해야 합니다.
-      각 계층은 독립적 검증 책임을 가집니다.
-    </p>
+    <div class="sec-eyebrow fade-up">Module Architecture</div>
+    <div class="sec-title fade-up" data-delay="1">Nine Pillars of Kappa</div>
+    <p class="sec-desc fade-up" data-delay="2">각 모듈은 독립 프로토콜 기반으로 설계되어 테스트 시 Mock으로 완전 교체 가능합니다.</p>
+    <div class="bento">
+      <div class="b-card b-wide fade-up"><div class="b-icon amber">$</div><h3>kappa.budget</h3><p><strong>BudgetTracker</strong> — 스레드 안전 토큰/비용 추적. RLock 기반.<br><strong>BudgetGate</strong> — LLM 호출 래퍼. pre_check → call → record_usage.<br><strong>LLMProvider</strong> — Protocol. AnthropicProvider 구현체 제공.</p></div>
+      <div class="b-card fade-up" data-delay="1"><div class="b-icon blue">S</div><h3>kappa.sandbox</h3><p><strong>SandboxExecutor</strong> — 코드 → Docker 컨테이너 실행.<br><strong>ContainerRuntime</strong> — Protocol. DockerRuntime.<br><strong>SandboxResult</strong> — exit_code, stdout, stderr.</p></div>
+      <div class="b-card b-wide fade-up" data-delay="2"><div class="b-icon dim">G</div><h3>kappa.graph</h3><p><strong>SelfHealingGraph V2</strong> — 5-node LangGraph StateGraph. &lt;action&gt;/&lt;tool_call&gt; 분기 파서.<br><strong>AgentState</strong> — TypedDict + tool_calls, memory_context.</p></div>
+      <div class="b-card fade-up" data-delay="3"><div class="b-icon green">M</div><h3>kappa.memory</h3><p><strong>VFSManager</strong> — 격리 작업공간 파일 시스템.<br><strong>Path Traversal</strong> — ../ 공격 원천 차단.</p></div>
+      <div class="b-card fade-up"><div class="b-icon blue">T</div><h3>kappa.tools</h3><p><strong>ToolRegistry</strong> — 도구 등록/디스패치 + 예산 연동.<br><strong>BaseTool</strong> — Protocol. 플러그 앤 플레이.</p></div>
+      <div class="b-card fade-up" data-delay="1"><div class="b-icon dim">D</div><h3>kappa.defense</h3><p><strong>SemanticLoopDetector</strong> — Jaccard 유사도 감지기.<br><strong>SemanticLoopException</strong> — 조기 차단 예외.</p></div>
+      <div class="b-card fade-up" data-delay="2"><div class="b-icon green">I</div><h3>kappa.infra</h3><p><strong>SyncSessionLane</strong> — Per-key Lock 자원 직렬화.<br><strong>jitter_backoff</strong> — Decorrelated Jitter 백오프.</p></div>
+      <div class="b-card b-wide fade-up" data-delay="3"><div class="b-icon indigo">O</div><h3>kappa.graph.orchestrator</h3><p><strong>OrchestratorGraph</strong> — LangGraph Super-Graph 오케스트레이터. Planner/Reviewer — LLM 기반 DAG 분해 & Quality Gate.<br><strong>SubTask</strong> — TypedDict DAG 노드, 병렬 디스패치.</p></div>
+      <div class="b-card fade-up" data-delay="4"><div class="b-icon amber">R</div><h3>kappa.telemetry</h3><p><strong>TelemetryManager</strong> — JSONL 궤적 기록기.<br><strong>TrajectoryRecord</strong> — think/critique/score.<br><strong>summary()</strong> — 집계 통계.</p></div>
+    </div>
 
-    <div class="pipeline">
-      <div class="pipeline-layer reveal">
-        <span class="layer-num">L1</span>
-        <span class="layer-name text-blue">Atomic XML Matching</span>
-        <span class="layer-desc">LLM 출력이 &lt;think&gt;/&lt;action&gt;/&lt;tool_call&gt; 구조를 준수하는지 검증</span>
-        <span class="layer-impl">parse_llm_output()</span>
-      </div>
-      <div class="pipeline-connector"></div>
-      <div class="pipeline-layer reveal reveal-delay-1">
-        <span class="layer-num">L2</span>
-        <span class="layer-name text-pink">Syntactic Broom</span>
-        <span class="layer-desc">AST 파싱으로 문법 오류를 샌드박스 전송 전 사전 차단</span>
-        <span class="layer-impl">lint_code()</span>
-      </div>
-      <div class="pipeline-connector"></div>
-      <div class="pipeline-layer reveal reveal-delay-2">
-        <span class="layer-num">L3</span>
-        <span class="layer-name text-mauve">Semantic Defense</span>
-        <span class="layer-desc">Jaccard 유사도 기반 의미론적 반복 감지 및 조기 차단</span>
-        <span class="layer-impl">SemanticLoopDetector</span>
-      </div>
-      <div class="pipeline-connector"></div>
-      <div class="pipeline-layer reveal reveal-delay-3">
-        <span class="layer-num">L4</span>
-        <span class="layer-name text-lavender">Self-Healing</span>
-        <span class="layer-desc">실행 오류 시 stderr + 원본 목표로 자동 교정 루프</span>
-        <span class="layer-impl">conditional_edges</span>
-      </div>
-      <div class="pipeline-connector"></div>
-      <div class="pipeline-layer reveal">
-        <span class="layer-num">L5</span>
-        <span class="layer-name text-blue">Runtime Smoke Test</span>
-        <span class="layer-desc">격리 컨테이너에서 제한 시간 내 동작 물리적 증명</span>
-        <span class="layer-impl">SandboxExecutor</span>
+    <div class="dep-block fade-up">
+      <div class="cb">
+        <div class="cb-bar"><i></i><i></i><i></i><span>Module Dependency</span></div>
+<pre><span class="cm"># Phase 1: 방어선 구축</span>
+<span class="fn">BudgetGate</span>      ← <span class="fn">SelfHealingGraph</span>._coder_node
+<span class="fn">SandboxExecutor</span> ← <span class="fn">SelfHealingGraph</span>._sandbox_node
+
+<span class="cm"># Phase 2: 인지적 자율성 이식</span>
+<span class="fn">VFSManager</span>      ← <span class="fn">ReadMemoryTool</span> / <span class="fn">WriteMemoryTool</span>
+<span class="fn">ToolRegistry</span>    ← <span class="fn">SelfHealingGraph</span>._tool_node
+<span class="fn">SemanticDetector</span> ← <span class="fn">SelfHealingGraph</span>._parser_node
+
+<span class="cm"># Phase 3: 다중 에이전트 오케스트레이션</span>
+<span class="fn">SessionLane</span>     ← <span class="fn">OrchestratorGraph</span>._execute_subtask
+<span class="fn">OrchestratorGraph</span> ← <span class="fn">SelfHealingGraph</span> (Sub-Graph worker)
+<span class="fn">TelemetryManager</span> ← <span class="fn">OrchestratorGraph</span>._reviewer_node
+
+<span class="cm"># 통합: 9개 모듈이 계층적 Super-Graph로 동작</span>
+<span class="fn">OrchestratorGraph</span>.<span class="fn">run</span>(<span class="str">"goal"</span>) → <span class="kw">SUCCESS</span> | <span class="kw">FAILED</span></pre>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Development Timeline -->
-<section id="development">
+<!-- Tests -->
+<section id="tests" class="test-section" style="background:var(--bg)">
   <div class="container">
-    <div class="section-label reveal">Development Track</div>
-    <div class="section-title reveal">Implementation Timeline</div>
-    <p class="section-desc reveal">
-      Phase 1에서 방어막을, Phase 2에서 인지적 자율성을, Phase 3에서 다중 에이전트 오케스트레이션을 구축했습니다.
-      통제 없는 자율성은 재앙이기 때문입니다.
-    </p>
+    <div class="sec-eyebrow fade-up" style="text-align:center">Verification</div>
+    <div class="sec-title fade-up" data-delay="1" style="text-align:center">Test Results</div>
+    <p class="sec-desc fade-up" data-delay="2" style="text-align:center;margin:0 auto 2rem">Phase 1–3의 모든 작업은 자동화된 테스트로 동작을 증명합니다.</p>
 
-    <div class="timeline">
-      <!-- Task 1 -->
-      <div class="timeline-item active reveal">
-        <div class="task-tag">Task 1</div>
-        <h3>Budget Gate & Circuit Breaker</h3>
-        <p>
-          LLM API 통신부 최상단에 재무적 방어선 구축.
-          세션별 토큰/비용 이중 추적, 한도 초과 시 회로 차단기가 영구적으로 트립되어
-          모든 후속 API 호출을 물리적으로 차단합니다.
-        </p>
-        <div class="code-block" style="margin-bottom:1rem">
-          <div class="code-block-header">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span>budget/tracker.py</span>
-          </div>
-<pre><span class="keyword">if</span> self.is_exceeded:
-    self._tripped = <span class="keyword">True</span>
-    <span class="keyword">raise</span> <span class="func">BudgetExceededException</span>(
-        <span class="string">f"Budget exceeded: {self.total_tokens} tokens"</span>
-    )</pre>
-        </div>
-        <span class="status">9 TESTS PASSED</span>
-      </div>
-
-      <!-- Task 2 -->
-      <div class="timeline-item active reveal">
-        <div class="task-tag">Task 2</div>
-        <h3>Deterministic Sandbox</h3>
-        <p>
-          에이전트 생성 코드를 호스트 OS에서 절대 실행하지 않는 격리 환경.
-          일회성 Docker 컨테이너에서 메모리 제한, 네트워크 차단, 타임아웃을 강제하고
-          실행 후 즉시 파괴합니다.
-        </p>
-        <div class="code-block" style="margin-bottom:1rem">
-          <div class="code-block-header">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span>sandbox/executor.py</span>
-          </div>
-<pre>container = self._client.containers.<span class="func">run</span>(
-    image=image,
-    command=[<span class="string">"python"</span>, <span class="string">"-c"</span>, code],
-    mem_limit=<span class="string">f"{mem_limit}m"</span>,
-    network_disabled=<span class="keyword">True</span>,
-    detach=<span class="keyword">True</span>,
-)</pre>
-        </div>
-        <span class="status">21 TESTS PASSED</span>
-      </div>
-
-      <!-- Task 3 -->
-      <div class="timeline-item active reveal">
-        <div class="task-tag">Task 3</div>
-        <h3>Self-Healing Loop</h3>
-        <p>
-          Task 1, 2의 인프라 위에 조립된 LangGraph 상태 머신.
-          코드 생성 &rarr; XML 파싱 &rarr; AST 린트 &rarr; 샌드박스 실행의 파이프라인에서
-          실패 시 에러 트레이스를 피드백으로 자동 재시도합니다. 최대 재시도 횟수로 무한 루프를 방지합니다.
-        </p>
-        <div class="code-block" style="margin-bottom:1rem">
-          <div class="code-block-header">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span>graph/graph.py</span>
-          </div>
-<pre>graph.<span class="func">set_entry_point</span>(<span class="string">"coder"</span>)
-graph.<span class="func">add_edge</span>(<span class="string">"coder"</span>, <span class="string">"parser"</span>)
-graph.<span class="func">add_conditional_edges</span>(<span class="string">"parser"</span>, route_after_parse)
-graph.<span class="func">add_conditional_edges</span>(<span class="string">"linter"</span>, route_after_lint)
-graph.<span class="func">add_conditional_edges</span>(<span class="string">"sandbox"</span>, route_after_sandbox)</pre>
-        </div>
-        <span class="status">17 TESTS PASSED</span>
-      </div>
-
-      <!-- Phase 2 -->
-      <div style="margin-top:5rem;margin-bottom:3rem" class="reveal">
-        <div class="section-label">Phase 2</div>
-        <div class="section-title" style="font-size:1.3rem">Cognitive Autonomy</div>
-      </div>
-
-      <!-- Task 4 (P2-T1) -->
-      <div class="timeline-item active reveal">
-        <div class="task-tag">Task 4 &mdash; VFS Memory</div>
-        <h3>Virtual File System Long-Term Memory</h3>
-        <p>
-          에이전트 전용 격리 작업 디렉토리(<code>.kappa_workspace/</code>)에서
-          학습 내용을 기록하고 검색하는 VFSManager.
-          경로 이탈 공격(<code>../</code>)을 원천 차단하며, 핵심 파일은 시스템 프롬프트에 자동 주입됩니다.
-        </p>
-        <div class="code-block" style="margin-bottom:1rem">
-          <div class="code-block-header">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span>memory/vfs.py</span>
-          </div>
-<pre>target = (self._root / relative).<span class="func">resolve</span>()
-<span class="keyword">try</span>:
-    target.<span class="func">relative_to</span>(self._root)
-<span class="keyword">except</span> <span class="func">ValueError</span>:
-    <span class="keyword">raise</span> <span class="func">ValueError</span>(<span class="string">"Path traversal blocked"</span>)</pre>
-        </div>
-        <span class="status">34 TESTS PASSED</span>
-      </div>
-
-      <!-- Task 5 (P2-T2) -->
-      <div class="timeline-item active reveal">
-        <div class="task-tag">Task 5 &mdash; Tool Registry</div>
-        <h3>MCP Tool Registry & Bridge</h3>
-        <p>
-          BaseTool 프로토콜 기반 플러그 앤 플레이 도구 레지스트리.
-          <code>read_memory</code>, <code>write_memory</code> 시스템 도구를 기본 제공하며,
-          모든 도구 실행 비용은 BudgetTracker를 경유하여 추적됩니다.
-        </p>
-        <div class="code-block" style="margin-bottom:1rem">
-          <div class="code-block-header">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span>tools/registry.py</span>
-          </div>
-<pre><span class="keyword">class</span> <span class="func">ToolRegistry</span>:
-    <span class="keyword">def</span> <span class="func">execute</span>(self, name, **kwargs):
-        tool = self.<span class="func">get</span>(name)
-        <span class="keyword">if</span> self._tracker:
-            self._tracker.<span class="func">record_usage</span>(
-                prompt_tokens=self._cost_per_tool_call,
-                completion_tokens=<span class="num">0</span>)
-        <span class="keyword">return</span> tool.<span class="func">execute</span>(**kwargs)</pre>
-        </div>
-        <span class="status">30 TESTS PASSED</span>
-      </div>
-
-      <!-- Task 6 (P2-T3) -->
-      <div class="timeline-item active reveal">
-        <div class="task-tag">Task 6 &mdash; Semantic Defense</div>
-        <h3>Semantic Infinite Loop Detector</h3>
-        <p>
-          최근 N개의 <code>&lt;think&gt;</code> 내용과 도구 호출 인자의
-          Jaccard 유사도를 슬라이딩 윈도우로 계산.
-          동일한 헛발질이 임계치 이상 반복되면 <code>SemanticLoopException</code>을 발생시켜
-          <code>max_attempts</code> 도달 전에 조기 차단합니다.
-        </p>
-        <div class="code-block" style="margin-bottom:1rem">
-          <div class="code-block-header">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span>defense/semantic.py</span>
-          </div>
-<pre>avg_sim = self.<span class="func">_average_pairwise_similarity</span>()
-<span class="keyword">if</span> avg_sim >= self._threshold:
-    <span class="keyword">raise</span> <span class="func">SemanticLoopException</span>(
-        <span class="string">f"Semantic loop: {avg_sim:.2f} >= {self._threshold}"</span>
-    )</pre>
-        </div>
-        <span class="status">24 TESTS PASSED</span>
-      </div>
-
-      <!-- Task 7 (P2-T4) -->
-      <div class="timeline-item active reveal">
-        <div class="task-tag">Task 7 &mdash; Graph V2</div>
-        <h3>Self-Healing Loop V2: Tool Branching</h3>
-        <p>
-          파서가 <code>&lt;action&gt;</code>과 <code>&lt;tool_call&gt;</code>을 분기하여
-          코드 실행(Sandbox)과 도구 호출(Tool)을 조건부 엣지로 분리.
-          VFS 메모리 컨텍스트 자동 주입, 의미론적 감지기 통합으로 Graph V2 완성.
-        </p>
-        <div class="code-block" style="margin-bottom:1rem">
-          <div class="code-block-header">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span>graph/graph.py (V2)</span>
-          </div>
-<pre>graph.<span class="func">add_node</span>(<span class="string">"tool"</span>, self._tool_node)
-graph.<span class="func">add_conditional_edges</span>(<span class="string">"parser"</span>, route_after_parse)
-<span class="comment"># parser → linter (code) | tool (tool_call) | coder (error)</span>
-graph.<span class="func">add_conditional_edges</span>(<span class="string">"tool"</span>, route_after_tool)</pre>
-        </div>
-        <span class="status">20 TESTS PASSED</span>
-      </div>
-
-      <!-- Phase 3 -->
-      <div style="margin-top:5rem;margin-bottom:3rem" class="reveal">
-        <div class="section-label">Phase 3</div>
-        <div class="section-title" style="font-size:1.3rem">Multi-Agent Orchestration</div>
-      </div>
-
-      <!-- Task 8 (P3-T1) -->
-      <div class="timeline-item active reveal">
-        <div class="task-tag">Task 8 &mdash; Infra Resilience</div>
-        <h3>SessionLane &amp; Jitter Backoff</h3>
-        <p>
-          다중 워커의 자원 경합을 막는 Per-key 세마포어(<code>SyncSessionLane</code>)와
-          Thundering Herd 현상을 방지하는 Decorrelated Jitter 지수적 백오프.
-          <code>ThreadPoolExecutor</code>와 <code>asyncio</code> 환경 모두 지원합니다.
-        </p>
-        <div class="code-block" style="margin-bottom:1rem">
-          <div class="code-block-header">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span>infra/session_lane.py</span>
-          </div>
-<pre><span class="keyword">with</span> self._meta_lock:
-    <span class="keyword">if</span> key <span class="keyword">not in</span> self._locks:
-        self._locks[key] = threading.<span class="func">Lock</span>()
-lock = self._locks[key]
-acquired = lock.<span class="func">acquire</span>(timeout=self._timeout)
-<span class="keyword">if not</span> acquired:
-    <span class="keyword">raise</span> <span class="func">SessionLaneTimeout</span>(<span class="string">f"timeout for {key}"</span>)</pre>
-        </div>
-        <span class="status">32 TESTS PASSED</span>
-      </div>
-
-      <!-- Task 9 (P3-T2) -->
-      <div class="timeline-item active reveal">
-        <div class="task-tag">Task 9 &mdash; Orchestrator</div>
-        <h3>Centralized Quality Gate Super-Graph</h3>
-        <p>
-          거대 목표를 DAG로 분해하는 <strong>Planner</strong>,
-          <code>SelfHealingGraph</code> 워커를 병렬 실행하는 <strong>Dispatcher</strong>,
-          산출물을 검수하는 <strong>Reviewer(Quality Gate)</strong>,
-          결과를 통합하는 <strong>Finalizer</strong>로 구성된 LangGraph Super-Graph.
-        </p>
-        <div class="code-block" style="margin-bottom:1rem">
-          <div class="code-block-header">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span>graph/orchestrator.py</span>
-          </div>
-<pre>graph.<span class="func">add_node</span>(<span class="string">"planner"</span>, self._planner_node)
-graph.<span class="func">add_node</span>(<span class="string">"dispatcher"</span>, self._dispatcher_node)
-graph.<span class="func">add_node</span>(<span class="string">"reviewer"</span>, self._reviewer_node)
-graph.<span class="func">add_node</span>(<span class="string">"finalizer"</span>, self._finalizer_node)
-<span class="comment"># reviewer &rarr; finalizer (done) | dispatcher (rejected) | failed</span>
-graph.<span class="func">add_conditional_edges</span>(<span class="string">"reviewer"</span>, route_after_review)</pre>
-        </div>
-        <span class="status">39 TESTS PASSED</span>
-      </div>
-
-      <!-- Task 10 (P3-T3) -->
-      <div class="timeline-item active reveal">
-        <div class="task-tag">Task 10 &mdash; Telemetry</div>
-        <h3>Agent-RRM Telemetry Pipeline</h3>
-        <p>
-          워커의 추론 궤적(<code>think</code>), Reviewer 비평(<code>critique</code>),
-          종합 점수(<code>score</code>)를 JSONL로 누적 기록하는 옵저버 패턴 수집기.
-          스레드 안전 보장, 비활성화 모드 지원, 통계 요약(<code>summary()</code>) 제공.
-        </p>
-        <div class="code-block" style="margin-bottom:1rem">
-          <div class="code-block-header">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span>telemetry/manager.py</span>
-          </div>
-<pre><span class="keyword">def</span> <span class="func">record</span>(self, trajectory: <span class="func">TrajectoryRecord</span>):
-    line = json.<span class="func">dumps</span>(<span class="func">asdict</span>(trajectory))
-    <span class="keyword">with</span> self._lock:
-        <span class="keyword">with</span> <span class="func">open</span>(self._log_path, <span class="string">"a"</span>) <span class="keyword">as</span> f:
-            f.<span class="func">write</span>(line + <span class="string">"\n"</span>)</pre>
-        </div>
-        <span class="status">32 TESTS PASSED</span>
-      </div>
+    <div class="test-phase-label fade-up">Phase 1</div>
+    <div class="test-rings fade-up">
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="9">0</div><div class="ring-label">Budget Gate</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="12">0</div><div class="ring-label">Sandbox (Unit)</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="10">0</div><div class="ring-label">Sandbox (Docker)</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="17">0</div><div class="ring-label">Self-Healing</div></div>
     </div>
-  </div>
-</section>
-
-<!-- Module Cards -->
-<section id="modules" style="background:rgba(231,230,247,0.02)">
-  <div class="container">
-    <div class="section-label reveal">Module Architecture</div>
-    <div class="section-title reveal">Nine Pillars of Kappa</div>
-    <p class="section-desc reveal">각 모듈은 독립 프로토콜 기반으로 설계되어 테스트 시 Mock으로 완전 교체 가능합니다.</p>
-
-    <div class="card-grid">
-      <div class="card reveal">
-        <div class="card-icon budget">$</div>
-        <h3>kappa.budget</h3>
-        <p>
-          <strong class="text-blue">BudgetTracker</strong> &mdash; 스레드 안전 토큰/비용 추적. RLock 기반.<br>
-          <strong class="text-blue">BudgetGate</strong> &mdash; LLM 호출 래퍼. pre_check &rarr; call &rarr; record_usage.<br>
-          <strong class="text-blue">LLMProvider</strong> &mdash; Protocol. AnthropicProvider 구현체 제공.
-        </p>
-      </div>
-      <div class="card reveal reveal-delay-1">
-        <div class="card-icon sandbox">S</div>
-        <h3>kappa.sandbox</h3>
-        <p>
-          <strong class="text-pink">SandboxExecutor</strong> &mdash; 코드 문자열 &rarr; Docker 컨테이너 실행.<br>
-          <strong class="text-pink">ContainerRuntime</strong> &mdash; Protocol. DockerRuntime 구현체.<br>
-          <strong class="text-pink">SandboxResult</strong> &mdash; exit_code, stdout, stderr, timed_out.
-        </p>
-      </div>
-      <div class="card reveal reveal-delay-2">
-        <div class="card-icon graph">G</div>
-        <h3>kappa.graph</h3>
-        <p>
-          <strong class="text-mauve">SelfHealingGraph V2</strong> &mdash; 5-node LangGraph StateGraph.<br>
-          <strong class="text-mauve">AgentState</strong> &mdash; TypedDict + tool_calls, memory_context.<br>
-          <strong class="text-mauve">nodes.py</strong> &mdash; &lt;action&gt;/&lt;tool_call&gt; 분기 파서.
-        </p>
-      </div>
-      <div class="card reveal">
-        <div class="card-icon" style="background:rgba(198,210,237,0.1);color:var(--blue)">M</div>
-        <h3>kappa.memory</h3>
-        <p>
-          <strong class="text-blue">VFSManager</strong> &mdash; 격리 작업공간 파일 시스템.<br>
-          <strong class="text-blue">MemoryConfig</strong> &mdash; workspace_root, auto_inject_files.<br>
-          <strong class="text-blue">Path Traversal</strong> &mdash; ../ 공격 원천 차단.
-        </p>
-      </div>
-      <div class="card reveal reveal-delay-1">
-        <div class="card-icon" style="background:rgba(227,208,216,0.1);color:var(--pink)">T</div>
-        <h3>kappa.tools</h3>
-        <p>
-          <strong class="text-pink">ToolRegistry</strong> &mdash; 도구 등록/디스패치 + 예산 연동.<br>
-          <strong class="text-pink">BaseTool</strong> &mdash; Protocol. 플러그 앤 플레이 인터페이스.<br>
-          <strong class="text-pink">Builtins</strong> &mdash; read_memory, write_memory 시스템 도구.
-        </p>
-      </div>
-      <div class="card reveal reveal-delay-2">
-        <div class="card-icon" style="background:rgba(130,112,129,0.15);color:var(--mauve-light)">D</div>
-        <h3>kappa.defense</h3>
-        <p>
-          <strong class="text-mauve">SemanticLoopDetector</strong> &mdash; Jaccard 유사도 감지기.<br>
-          <strong class="text-mauve">SemanticConfig</strong> &mdash; window_size, threshold, min_samples.<br>
-          <strong class="text-mauve">SemanticLoopException</strong> &mdash; 조기 차단 예외.
-        </p>
-      </div>
-      <div class="card reveal">
-        <div class="card-icon" style="background:rgba(198,210,237,0.1);color:var(--blue)">I</div>
-        <h3>kappa.infra</h3>
-        <p>
-          <strong class="text-blue">SyncSessionLane</strong> &mdash; Per-key Lock 기반 자원 직렬화.<br>
-          <strong class="text-blue">AsyncSessionLane</strong> &mdash; asyncio.Lock 비동기 버전.<br>
-          <strong class="text-blue">jitter_backoff</strong> &mdash; AWS Decorrelated Jitter 백오프.
-        </p>
-      </div>
-      <div class="card reveal reveal-delay-1">
-        <div class="card-icon" style="background:rgba(174,163,176,0.1);color:var(--mauve-light)">O</div>
-        <h3>kappa.graph.orchestrator</h3>
-        <p>
-          <strong class="text-mauve">OrchestratorGraph</strong> &mdash; LangGraph Super-Graph 오케스트레이터.<br>
-          <strong class="text-mauve">Planner/Reviewer</strong> &mdash; LLM 기반 DAG 분해 &amp; Quality Gate.<br>
-          <strong class="text-mauve">SubTask</strong> &mdash; TypedDict DAG 노드, 병렬 디스패치.
-        </p>
-      </div>
-      <div class="card reveal reveal-delay-2">
-        <div class="card-icon" style="background:rgba(227,208,216,0.1);color:var(--pink)">R</div>
-        <h3>kappa.telemetry</h3>
-        <p>
-          <strong class="text-pink">TelemetryManager</strong> &mdash; 옵저버 패턴 JSONL 궤적 기록기.<br>
-          <strong class="text-pink">TrajectoryRecord</strong> &mdash; think/critique/score 데이터클래스.<br>
-          <strong class="text-pink">summary()</strong> &mdash; 집계 통계 (avg_score, rejection_rate).
-        </p>
-      </div>
+    <div class="test-phase-label fade-up">Phase 2</div>
+    <div class="test-rings fade-up">
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill blue" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="34">0</div><div class="ring-label">VFS Memory</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill blue" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="30">0</div><div class="ring-label">Tool Registry</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill blue" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="24">0</div><div class="ring-label">Semantic Defense</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill blue" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="20">0</div><div class="ring-label">Graph V2</div></div>
+    </div>
+    <div class="test-phase-label fade-up">Phase 3</div>
+    <div class="test-rings fade-up">
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill green" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="32">0</div><div class="ring-label">Infra</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill green" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="39">0</div><div class="ring-label">Orchestrator</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill green" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="32">0</div><div class="ring-label">Telemetry</div></div>
     </div>
 
-    <!-- Relationship diagram -->
-    <div class="reveal" style="margin-top:3rem">
-      <div class="code-block">
-        <div class="code-block-header">
-          <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-          <span>Module Dependency</span>
-        </div>
-<pre><span class="comment"># Phase 1: 방어선 구축</span>
-<span class="func">BudgetGate</span>      &larr; <span class="func">SelfHealingGraph</span>._coder_node
-<span class="func">SandboxExecutor</span> &larr; <span class="func">SelfHealingGraph</span>._sandbox_node
-
-<span class="comment"># Phase 2: 인지적 자율성 이식</span>
-<span class="func">VFSManager</span>      &larr; <span class="func">ReadMemoryTool</span> / <span class="func">WriteMemoryTool</span>
-<span class="func">ToolRegistry</span>    &larr; <span class="func">SelfHealingGraph</span>._tool_node
-<span class="func">SemanticDetector</span> &larr; <span class="func">SelfHealingGraph</span>._parser_node
-
-<span class="comment"># Phase 3: 다중 에이전트 오케스트레이션</span>
-<span class="func">SessionLane</span>     &larr; <span class="func">OrchestratorGraph</span>._execute_subtask
-<span class="func">OrchestratorGraph</span> &larr; <span class="func">SelfHealingGraph</span> (Sub-Graph worker)
-<span class="func">TelemetryManager</span> &larr; <span class="func">OrchestratorGraph</span>._reviewer_node
-
-<span class="comment"># 통합: 9개 모듈이 계층적 Super-Graph로 동작</span>
-<span class="func">OrchestratorGraph</span>.<span class="func">run</span>(<span class="string">"goal"</span>) &rarr; <span class="keyword">SUCCESS</span> | <span class="keyword">FAILED</span></pre>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Test Results -->
-<section id="tests">
-  <div class="container">
-    <div class="section-label reveal">Verification</div>
-    <div class="section-title reveal">Test Results</div>
-    <p class="section-desc reveal">Phase 1&ndash;3의 모든 작업은 자동화된 테스트로 동작을 증명합니다.</p>
-
-    <div class="section-label reveal" style="margin-top:1rem;margin-bottom:1rem">Phase 1</div>
-    <div class="test-grid">
-      <div class="test-card reveal">
-        <div class="count" data-target="9">0</div>
-        <div class="label">Budget Gate</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-      <div class="test-card reveal reveal-delay-1">
-        <div class="count" data-target="12">0</div>
-        <div class="label">Sandbox (Unit)</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-      <div class="test-card reveal reveal-delay-2">
-        <div class="count" data-target="10">0</div>
-        <div class="label">Sandbox (Docker)</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-      <div class="test-card reveal reveal-delay-3">
-        <div class="count" data-target="17">0</div>
-        <div class="label">Self-Healing</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-    </div>
-
-    <div class="section-label reveal" style="margin-top:2.5rem;margin-bottom:1rem">Phase 2</div>
-    <div class="test-grid">
-      <div class="test-card reveal">
-        <div class="count" data-target="34">0</div>
-        <div class="label">VFS Memory</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-      <div class="test-card reveal reveal-delay-1">
-        <div class="count" data-target="30">0</div>
-        <div class="label">Tool Registry</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-      <div class="test-card reveal reveal-delay-2">
-        <div class="count" data-target="24">0</div>
-        <div class="label">Semantic Defense</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-      <div class="test-card reveal reveal-delay-3">
-        <div class="count" data-target="20">0</div>
-        <div class="label">Graph V2</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-    </div>
-
-    <div class="section-label reveal" style="margin-top:2.5rem;margin-bottom:1rem">Phase 3</div>
-    <div class="test-grid">
-      <div class="test-card reveal">
-        <div class="count" data-target="32">0</div>
-        <div class="label">Infra (SessionLane &amp; Jitter)</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-      <div class="test-card reveal reveal-delay-1">
-        <div class="count" data-target="39">0</div>
-        <div class="label">Orchestrator</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-      <div class="test-card reveal reveal-delay-2">
-        <div class="count" data-target="32">0</div>
-        <div class="label">Telemetry</div>
-        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
-      </div>
-    </div>
-
-    <div style="text-align:center;margin-top:3rem" class="reveal">
-      <div style="font-family:var(--font-mono);font-size:3rem;font-weight:700;color:var(--lavender)">
-        250 / 250
-      </div>
-      <div style="font-size:.85rem;color:var(--text-muted);margin-top:.5rem">ALL TESTS PASSING</div>
+    <div class="test-total fade-up">
+      <div class="big"><em>250</em> / 250</div>
+      <div class="sub">All Tests Passing</div>
     </div>
   </div>
 </section>
 
 <!-- Footer -->
 <footer>
-  <div class="container">
-    <div class="footer-links">
+  <div class="marquee"><div class="marquee-inner" id="marquee"></div></div>
+  <div class="container" style="padding-top:2rem">
+    <div class="f-logo">KAPPA</div>
+    <div class="f-links">
       <a href="https://github.com/KIMMUSIC/kappa" target="_blank">GitHub</a>
       <a href="#architecture">Architecture</a>
-      <a href="#development">Development</a>
+      <a href="#timeline">Timeline</a>
     </div>
-    <p>Kappa v0.3 &mdash; Phase 3: Multi-Agent Orchestration</p>
-    <p style="margin-top:.5rem">Built with deterministic guardrails, semantic defense &amp; hierarchical orchestration.</p>
+    <p>Kappa v0.3 — Phase 3: Multi-Agent Orchestration</p>
+    <p style="margin-top:.3rem">Built with deterministic guardrails, semantic defense & hierarchical orchestration.</p>
   </div>
 </footer>
 
 <script>
-// ── Scroll Reveal ──────────────────────────────────────
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
+/* ── Mobile Nav ────────────────────────────────────────── */
+function toggleNav(){document.querySelector('.nav-toggle').classList.toggle('open');document.getElementById('mmenu').classList.toggle('open')}
+function closeNav(){document.querySelector('.nav-toggle').classList.remove('open');document.getElementById('mmenu').classList.remove('open')}
+
+/* ── Nav Scroll ────────────────────────────────────────── */
+var navE=document.getElementById('main-nav'),lastY=0;
+window.addEventListener('scroll',function(){
+  var y=window.scrollY;
+  navE.classList.toggle('scrolled',y>80);
+  if(y>lastY&&y>200)navE.style.transform='translateY(-100%)';
+  else navE.style.transform='translateY(0)';
+  lastY=y;
+},{passive:true});
+
+/* ── Scroll Reveal ─────────────────────────────────────── */
+var sObs=new IntersectionObserver(function(e){e.forEach(function(en){if(en.isIntersecting)en.target.classList.add('vis')})},{threshold:.1,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.fade-up,.fade-left,.fade-right,.clip-reveal').forEach(function(el){sObs.observe(el)});
+
+/* ── Counter Animation ─────────────────────────────────── */
+function animC(el,t){var c=0,s=Math.max(1,Math.floor(t/30)),iv=setInterval(function(){c+=s;if(c>=t){c=t;clearInterval(iv)}el.textContent=c},40)}
+var cObs=new IntersectionObserver(function(e){e.forEach(function(en){if(en.isIntersecting&&!en.target.dataset.done){en.target.dataset.done='1';animC(en.target,parseInt(en.target.dataset.target))}})},{threshold:.5});
+document.querySelectorAll('[data-target]').forEach(function(el){cObs.observe(el)});
+
+/* ── Progress Ring Animation ───────────────────────────── */
+var rObs=new IntersectionObserver(function(e){e.forEach(function(en){if(en.isIntersecting&&!en.target.dataset.done){en.target.dataset.done='1';var rings=en.target.querySelectorAll('.ring-fill');rings.forEach(function(r,i){setTimeout(function(){r.style.strokeDashoffset='0'},i*100)})}})},{threshold:.3});
+document.querySelectorAll('.test-rings').forEach(function(el){rObs.observe(el)});
+
+/* ── Terminal Typing ───────────────────────────────────── */
+(function(){
+  var lines=[
+    {t:'kappa --version',c:'cmd'},{t:'v0.3.0 (Phase 3: Multi-Agent Orchestration)',c:'out'},
+    {t:'',c:''},{t:'kappa status',c:'cmd'},
+    {t:'┌──────────────────────────────────────────┐',c:'out'},
+    {t:'│  Modules: 9 loaded    Tests: 250 passed  │',c:'out'},
+    {t:'│  GEODE Layers: 5      Safety: 9 layers   │',c:'out'},
+    {t:'└──────────────────────────────────────────┘',c:'out'},
+    {t:'',c:''},{t:'kappa run "Build a REST API"',c:'cmd'},
+    {t:'[planner] Decomposing goal → 3 subtasks',c:'step'},
+    {t:'[dispatch] Spawning 3 workers...',c:'step'},
+    {t:'[worker-1] coder → parser → linter → sandbox ✓',c:'ok'},
+    {t:'[worker-2] coder → parser → linter → sandbox ✓',c:'ok'},
+    {t:'[worker-3] coder → parser → linter → sandbox ✓',c:'ok'},
+    {t:'[reviewer] Quality Gate: APPROVED',c:'ok'},
+    {t:'[finalize] Merging results → output ready',c:'ok'},
+    {t:'',c:''},{t:'✓ Orchestration complete (3/3 tasks passed)',c:'done'},
+  ];
+  var body=document.getElementById('term-body');
+  var li=0,ci=0,curLine=null;
+  function type(){
+    if(li>=lines.length){body.innerHTML+='<span class="cursor"></span>';return}
+    var ln=lines[li];
+    if(!curLine){
+      curLine=document.createElement('div');
+      curLine.className=ln.c;
+      if(ln.c==='cmd')curLine.innerHTML='';
+      body.appendChild(curLine);
+      if(ln.t===''){li++;curLine=null;setTimeout(type,200);return}
     }
+    if(ln.c==='cmd'){
+      var base='$ '+ln.t;
+      curLine.textContent='';
+      curLine.innerHTML='';
+      var prefix=document.createTextNode('');
+      curLine.appendChild(prefix);
+      var full=base;
+      if(ci<full.length){
+        curLine.textContent=full.substring(0,ci+1);
+        ci++;
+        setTimeout(type,35);
+      } else {ci=0;li++;curLine=null;setTimeout(type,400)}
+    } else {
+      curLine.textContent=ln.t;
+      ci=0;li++;curLine=null;
+      setTimeout(type,ln.c==='out'?60:180);
+    }
+    body.scrollTop=body.scrollHeight;
+  }
+  var tObs=new IntersectionObserver(function(e){e.forEach(function(en){if(en.isIntersecting&&!en.target.dataset.started){en.target.dataset.started='1';setTimeout(type,600)}})},{threshold:.3});
+  tObs.observe(body);
+})();
+
+/* ── Timeline Accordion ────────────────────────────────── */
+function toggleTl(hdr){
+  var item=hdr.parentElement;
+  var wasOpen=item.classList.contains('open');
+  // close all in same phase
+  item.parentElement.querySelectorAll('.tl-item.open').forEach(function(i){
+    i.classList.remove('open');
+    i.querySelector('.tl-body').style.maxHeight='0';
   });
-}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-
-document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-// ── Animated Counters ──────────────────────────────────
-function animateCounter(el, target) {
-  let current = 0;
-  const step = Math.max(1, Math.floor(target / 30));
-  const interval = setInterval(() => {
-    current += step;
-    if (current >= target) {
-      current = target;
-      clearInterval(interval);
+  if(!wasOpen){
+    item.classList.add('open');
+    var body=item.querySelector('.tl-body');
+    var inner=body.querySelector('.tl-body-inner');
+    // build code block if not yet
+    if(!inner.querySelector('.cb')&&item.dataset.code){
+      var cb=document.createElement('div');cb.className='cb';
+      cb.innerHTML='<div class="cb-bar"><i></i><i></i><i></i><span>'+item.dataset.file+'</span></div><pre>'+item.dataset.code.replace(/\\n/g,'\n')+'</pre>';
+      inner.appendChild(cb);
     }
-    el.textContent = current;
-  }, 40);
+    body.style.maxHeight=inner.scrollHeight+40+'px';
+  }
 }
 
-const counterObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting && !entry.target.dataset.animated) {
-      entry.target.dataset.animated = 'true';
-      const target = parseInt(entry.target.dataset.target || entry.target.textContent);
-      animateCounter(entry.target, target);
-    }
-  });
-}, { threshold: 0.5 });
-
-document.querySelectorAll('[data-target]').forEach(el => counterObserver.observe(el));
-
-// ── Test Bar Animation ─────────────────────────────────
-const barObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      const fill = entry.target.querySelector('.test-bar-fill');
-      if (fill && !fill.dataset.animated) {
-        fill.dataset.animated = 'true';
-        setTimeout(() => {
-          fill.style.width = fill.dataset.width + '%';
-        }, 200);
-      }
-    }
-  });
-}, { threshold: 0.5 });
-
-document.querySelectorAll('.test-card').forEach(el => barObserver.observe(el));
-
-// ── Nav Hide on Scroll Down ────────────────────────────
-let lastScroll = 0;
-const nav = document.querySelector('nav');
-window.addEventListener('scroll', () => {
-  const current = window.scrollY;
-  if (current > lastScroll && current > 100) {
-    nav.style.transform = 'translateY(-100%)';
-  } else {
-    nav.style.transform = 'translateY(0)';
-  }
-  lastScroll = current;
-}, { passive: true });
-
-// ── Orchestrator Flow Animation ───────────────────────
-(function() {
-  const STEPS = [
-    { name: 'planning',     status: 'PLANNER: 목표를 서브태스크 DAG로 분해 중...' },
-    { name: 'dispatching',  status: 'DISPATCHER: 워커에게 서브태스크 병렬 전달 중...' },
-    { name: 'workers',      status: 'WORKERS: SelfHealingGraph 루프 실행 중...' },
-    { name: 'reviewing',    status: 'REVIEWER: Quality Gate 검수 중...' },
-    { name: 'telemetry',    status: 'TELEMETRY: 궤적 JSONL 기록 중...' },
-    { name: 'reject',       status: 'REJECTED: critique 피드백 → Dispatcher 재순환' },
-    { name: 'dispatching2', status: 'DISPATCHER: 거부된 태스크 재실행 중...' },
-    { name: 'workers2',     status: 'WORKERS: 비평 반영하여 재시도 중...' },
-    { name: 'reviewing2',   status: 'REVIEWER: 재검수 — 이번엔 승인!' },
-    { name: 'finalizing',   status: 'FINALIZER: 결과 병합 → 최종 출력 생성' },
-    { name: 'done',         status: 'DONE: 오케스트레이션 완료 ✓' },
+/* ── Orchestrator Animation ────────────────────────────── */
+(function(){
+  var STEPS=[
+    {n:'plan',s:'PLANNER: 목표를 DAG로 분해 중...'},
+    {n:'disp',s:'DISPATCHER: 워커에게 병렬 전달...'},
+    {n:'work',s:'WORKERS: SelfHealingGraph 실행 중...'},
+    {n:'rev',s:'REVIEWER: Quality Gate 검수 중...'},
+    {n:'tel',s:'TELEMETRY: JSONL 기록 중...'},
+    {n:'rej',s:'REJECTED: critique → Dispatcher 재순환'},
+    {n:'disp2',s:'DISPATCHER: 거부 태스크 재실행...'},
+    {n:'work2',s:'WORKERS: 비평 반영 재시도...'},
+    {n:'rev2',s:'REVIEWER: 재검수 — 승인!'},
+    {n:'fin',s:'FINALIZER: 결과 병합 → 최종 출력'},
+    {n:'done',s:'DONE: 오케스트레이션 완료 ✓'},
   ];
-
-  let currentStep = -1;
-  let autoTimer = null;
-  let isPlaying = false;
-
-  function resetAll() {
-    currentStep = -1;
-    isPlaying = false;
-    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
-    // Reset nodes
-    document.querySelectorAll('.orch-node').forEach(n => n.classList.remove('active'));
-    document.querySelectorAll('.orch-arrow, .orch-arrow-down').forEach(a => a.classList.remove('active'));
-    document.querySelectorAll('.orch-worker').forEach(w => w.classList.remove('active'));
-    // Reset packets — remove and re-clone to restart animation
-    document.querySelectorAll('.packet').forEach(p => { p.style.animation = 'none'; p.style.opacity = '0'; });
-    // Reset labels
-    var rl = document.getElementById('orch-reject-label');
-    var tl = document.getElementById('orch-telemetry-label');
-    if (rl) rl.style.opacity = '0';
-    if (tl) tl.style.opacity = '0';
-    // Reset status
-    var st = document.getElementById('orch-status-text');
-    if (st) { st.textContent = 'READY'; st.className = 'status-text'; }
-    // Reset button
-    var btn = document.getElementById('orch-btn-auto');
-    if (btn) { btn.textContent = '\u25B6 Auto Play'; btn.classList.remove('active'); }
+  // build progress dots
+  var prog=document.getElementById('o-prog');
+  STEPS.forEach(function(){var d=document.createElement('i');prog.appendChild(d)});
+  var cur=-1,timer=null,playing=false;
+  function updProg(){prog.querySelectorAll('i').forEach(function(d,i){d.className=i<cur?'past':i===cur?'on':''})}
+  function reset(){
+    cur=-1;playing=false;if(timer){clearTimeout(timer);timer=null}
+    document.querySelectorAll('.o-node').forEach(function(n){n.classList.remove('active')});
+    document.querySelectorAll('.o-arrow,.o-arrow-d').forEach(function(a){a.classList.remove('active')});
+    document.querySelectorAll('.o-worker').forEach(function(w){w.classList.remove('active')});
+    document.querySelectorAll('.pkt').forEach(function(p){p.style.animation='none';p.style.opacity='0'});
+    document.getElementById('o-rej').style.opacity='0';
+    document.getElementById('o-tel').style.opacity='0';
+    var st=document.getElementById('o-st');st.textContent='READY';st.className='';
+    document.getElementById('o-btn-auto').textContent='▶ Auto';
+    document.getElementById('o-btn-auto').classList.remove('active');
+    updProg();
   }
-
-  function firePacket(id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.style.animation = 'none';
-    el.offsetHeight; // reflow
-    var isVert = el.parentElement.classList.contains('orch-arrow-down');
-    el.style.animation = (isVert ? 'packet-v' : 'packet-h') + ' 1s ease-in-out forwards';
+  function fire(id){var e=document.getElementById(id);if(!e)return;e.style.animation='none';e.offsetHeight;e.style.animation=(e.parentElement.classList.contains('o-arrow-d')?'pkt-v':'pkt-h')+' .9s ease-in-out forwards'}
+  function aNode(id){var e=document.getElementById(id);if(e)e.classList.add('active')}
+  function aArrow(id){var e=document.getElementById(id);if(e)e.classList.add('active')}
+  function aWorkers(){document.querySelectorAll('.o-worker').forEach(function(w,i){setTimeout(function(){w.classList.add('active')},i*150)})}
+  function dWorkers(){document.querySelectorAll('.o-worker').forEach(function(w){w.classList.remove('active')})}
+  function setSt(t,c){var s=document.getElementById('o-st');s.textContent=t;s.className=c||'running'}
+  function step(){
+    cur++;if(cur>=STEPS.length){playing=false;document.getElementById('o-btn-auto').textContent='▶ Auto';document.getElementById('o-btn-auto').classList.remove('active');return false}
+    var s=STEPS[cur];setSt(s.s,cur===STEPS.length-1?'done':'running');updProg();
+    switch(s.n){
+      case'plan':aNode('on-plan');break;
+      case'disp':case'disp2':aArrow('oa-1');fire('op-1');setTimeout(function(){aNode('on-disp')},500);break;
+      case'work':case'work2':aArrow('oa-d');fire('op-d');setTimeout(aWorkers,300);break;
+      case'rev':case'rev2':dWorkers();aArrow('oa-2');fire('op-2');setTimeout(function(){aNode('on-rev')},500);break;
+      case'tel':document.getElementById('o-tel').style.opacity='1';break;
+      case'rej':document.getElementById('o-rej').style.opacity='1';document.getElementById('on-rev').classList.remove('active');document.getElementById('oa-2').classList.remove('active');break;
+      case'fin':document.getElementById('o-rej').style.opacity='0';aArrow('oa-3');fire('op-3');setTimeout(function(){aNode('on-fin')},500);break;
+      case'done':break;
+    }return true;
   }
-
-  function activateNode(id) {
-    var el = document.getElementById(id);
-    if (el) el.classList.add('active');
-  }
-
-  function activateArrow(id) {
-    var el = document.getElementById(id);
-    if (el) el.classList.add('active');
-  }
-
-  function activateWorkers() {
-    document.querySelectorAll('.orch-worker').forEach((w, i) => {
-      setTimeout(() => w.classList.add('active'), i * 200);
-    });
-  }
-
-  function deactivateWorkers() {
-    document.querySelectorAll('.orch-worker').forEach(w => w.classList.remove('active'));
-  }
-
-  function setStatus(text, cls) {
-    var st = document.getElementById('orch-status-text');
-    if (st) { st.textContent = text; st.className = 'status-text ' + (cls || 'running'); }
-  }
-
-  function runStep() {
-    currentStep++;
-    if (currentStep >= STEPS.length) {
-      isPlaying = false;
-      var btn = document.getElementById('orch-btn-auto');
-      if (btn) { btn.textContent = '\u25B6 Auto Play'; btn.classList.remove('active'); }
-      return false;
-    }
-
-    var s = STEPS[currentStep];
-    setStatus(s.status, currentStep === STEPS.length - 1 ? 'done' : 'running');
-
-    switch(s.name) {
-      case 'planning':
-        activateNode('onode-planner');
-        break;
-      case 'dispatching':
-      case 'dispatching2':
-        activateArrow('oarrow-1'); firePacket('opkt-1');
-        setTimeout(function(){ activateNode('onode-dispatcher'); }, 600);
-        break;
-      case 'workers':
-      case 'workers2':
-        activateArrow('oarrow-down'); firePacket('opkt-down');
-        setTimeout(activateWorkers, 400);
-        break;
-      case 'reviewing':
-      case 'reviewing2':
-        deactivateWorkers();
-        activateArrow('oarrow-2'); firePacket('opkt-2');
-        setTimeout(function(){ activateNode('onode-reviewer'); }, 600);
-        break;
-      case 'telemetry':
-        var tl = document.getElementById('orch-telemetry-label');
-        if (tl) tl.style.opacity = '1';
-        break;
-      case 'reject':
-        var rl = document.getElementById('orch-reject-label');
-        if (rl) rl.style.opacity = '1';
-        // Deactivate reviewer for re-loop
-        document.getElementById('onode-reviewer').classList.remove('active');
-        document.getElementById('oarrow-2').classList.remove('active');
-        break;
-      case 'finalizing':
-        var rl2 = document.getElementById('orch-reject-label');
-        if (rl2) rl2.style.opacity = '0';
-        activateArrow('oarrow-3'); firePacket('opkt-3');
-        setTimeout(function(){ activateNode('onode-finalizer'); }, 600);
-        break;
-      case 'done':
-        break;
-    }
-    return true;
-  }
-
-  window.orchAutoPlay = function() {
-    if (isPlaying) {
-      isPlaying = false;
-      if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
-      var btn = document.getElementById('orch-btn-auto');
-      if (btn) { btn.textContent = '\u25B6 Auto Play'; btn.classList.remove('active'); }
-      return;
-    }
-    if (currentStep >= STEPS.length - 1) resetAll();
-    isPlaying = true;
-    var btn = document.getElementById('orch-btn-auto');
-    if (btn) { btn.textContent = '\u23F8 Pause'; btn.classList.add('active'); }
-
-    function tick() {
-      if (!isPlaying) return;
-      var more = runStep();
-      if (more && isPlaying) {
-        autoTimer = setTimeout(tick, 1800);
-      } else {
-        isPlaying = false;
-        var b = document.getElementById('orch-btn-auto');
-        if (b) { b.textContent = '\u25B6 Auto Play'; b.classList.remove('active'); }
-      }
-    }
-    tick();
+  window.oAutoPlay=function(){
+    if(playing){playing=false;if(timer){clearTimeout(timer);timer=null}document.getElementById('o-btn-auto').textContent='▶ Auto';document.getElementById('o-btn-auto').classList.remove('active');return}
+    if(cur>=STEPS.length-1)reset();
+    playing=true;document.getElementById('o-btn-auto').textContent='⏸ Pause';document.getElementById('o-btn-auto').classList.add('active');
+    (function tick(){if(!playing)return;var m=step();if(m&&playing)timer=setTimeout(tick,1600);else{playing=false;document.getElementById('o-btn-auto').textContent='▶ Auto';document.getElementById('o-btn-auto').classList.remove('active')}})();
   };
+  window.oStep=function(){if(playing){playing=false;if(timer){clearTimeout(timer);timer=null}document.getElementById('o-btn-auto').textContent='▶ Auto';document.getElementById('o-btn-auto').classList.remove('active')}if(cur>=STEPS.length-1)reset();step()};
+  window.oReset=reset;
+})();
 
-  window.orchStepOnce = function() {
-    if (isPlaying) { // stop auto if running
-      isPlaying = false;
-      if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
-      var btn = document.getElementById('orch-btn-auto');
-      if (btn) { btn.textContent = '\u25B6 Auto Play'; btn.classList.remove('active'); }
-    }
-    if (currentStep >= STEPS.length - 1) resetAll();
-    runStep();
-  };
-
-  window.orchReset = function() {
-    resetAll();
-  };
+/* ── Marquee ───────────────────────────────────────────── */
+(function(){
+  var items=['Python 3.11+','LangGraph','Docker','pytest','Anthropic','TypedDict','asyncio','ThreadPoolExecutor','JSONL','StateGraph'];
+  var m=document.getElementById('marquee');
+  var html=items.map(function(s){return'<span>'+s+'</span>'}).join('');
+  m.innerHTML=html+html; // duplicate for seamless loop
 })();
 </script>
 </body>
