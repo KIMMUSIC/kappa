@@ -285,7 +285,7 @@ section{position:relative;z-index:1;padding:7rem 0}
 .ring-bg{stroke:var(--border);stroke-width:6;fill:none}
 .ring-fill{stroke-width:6;fill:none;stroke-linecap:round;
   transition:stroke-dashoffset 1.5s var(--ease-out-expo)}
-.ring-fill.amber{stroke:var(--amber)}.ring-fill.blue{stroke:var(--blue)}.ring-fill.green{stroke:var(--green)}
+.ring-fill.amber{stroke:var(--amber)}.ring-fill.blue{stroke:var(--blue)}.ring-fill.green{stroke:var(--green)}.ring-fill.indigo{stroke:var(--indigo)}
 .ring-val{position:absolute;top:50%;left:50%;transform:translate(-50%,-56%);
   font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--text)}
 .ring-label{font-size:.68rem;color:var(--text-sec);margin-top:.3rem;line-height:1.3}
@@ -380,11 +380,12 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
 <section class="hero">
   <div class="container">
     <div class="hero-inner">
-      <div class="eyebrow fade-up">Phase 3 — Multi-Agent Orchestration</div>
+      <div class="eyebrow fade-up">Phase 5 — Production Launch</div>
       <h1 class="fade-up" data-delay="1"><em>Kappa</em> Agent<br>Harness</h1>
       <p class="subtitle fade-up" data-delay="2">
         LLM의 확률적 출력을 결정론적으로 통제하는 자율 수행 에이전트 하네스.
-        예산 방어, 샌드박스 격리, 자가 치유 루프 위에 다중 에이전트 오케스트레이션 구축.
+        9-Pillar 아키텍처 위에 MCP, RAG, HITL, 프로덕션 엔트리포인트를 완성한
+        실전 배포 가능 에이전트 OS.
       </p>
 
       <div class="terminal fade-up" data-delay="3">
@@ -396,8 +397,8 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
       </div>
 
       <div class="hero-metrics fade-up" data-delay="4">
-        <div class="hero-metric"><div class="val" data-target="250">0</div><div class="lbl">Tests Passing</div></div>
-        <div class="hero-metric"><div class="val" data-target="9">0</div><div class="lbl">Safety Layers</div></div>
+        <div class="hero-metric"><div class="val" data-target="394">0</div><div class="lbl">Tests Passing</div></div>
+        <div class="hero-metric"><div class="val" data-target="15">0</div><div class="lbl">Core Modules</div></div>
         <div class="hero-metric"><div class="val" data-target="5">0</div><div class="lbl">Pipeline Layers</div></div>
       </div>
     </div>
@@ -411,7 +412,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     <div class="sec-title fade-up" data-delay="1">Self-Healing Graph Architecture</div>
     <p class="sec-desc fade-up" data-delay="2">
       상위 Orchestrator Super-Graph가 목표를 분해하고 하위 Worker를 병렬 통제.
-      Quality Gate가 산출물을 검수하며, SessionLane이 자원 충돌을 방지합니다.
+      Quality Gate가 산출물을 검수하며, MCP 브릿지와 RAG 파이프라인이 외부 세계와 연결됩니다.
     </p>
     <div class="arch-wrap fade-up" data-delay="3">
       <svg viewBox="0 0 1060 360" xmlns="http://www.w3.org/2000/svg">
@@ -541,7 +542,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
   <div class="container">
     <div class="sec-eyebrow fade-up">Development Track</div>
     <div class="sec-title fade-up" data-delay="1">Implementation Timeline</div>
-    <p class="sec-desc fade-up" data-delay="2">통제 없는 자율성은 재앙이기 때문입니다. Phase 1에서 방어막을, Phase 2에서 인지적 자율성을, Phase 3에서 오케스트레이션을 구축했습니다.</p>
+    <p class="sec-desc fade-up" data-delay="2">통제 없는 자율성은 재앙이기 때문입니다. Phase 1에서 방어막을, Phase 2에서 인지적 자율성을, Phase 3에서 오케스트레이션을, Phase 4에서 프로덕션 연동을, Phase 5에서 실전 엔트리포인트를 구축했습니다.</p>
 
     <div class="tl-phase fade-up" data-delay="3">
       <div class="tl-phase-label">Phase 1 — Deterministic Guardrails</div>
@@ -594,6 +595,30 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
         <div class="tl-body"><div class="tl-body-inner"><p>워커의 추론 궤적(think), Reviewer 비평(critique), 종합 점수(score)를 JSONL로 누적 기록하는 옵저버 패턴 수집기. 스레드 안전 보장, 통계 요약(summary()) 제공.</p></div></div>
       </div>
     </div>
+
+    <div class="tl-phase fade-up">
+      <div class="tl-phase-label">Phase 4 — Production Integration</div>
+      <div class="tl-item" data-code='<span class="kw">class</span> <span class="fn">MCPToolAdapter</span>:\n    <span class="kw">def</span> <span class="fn">execute</span>(self, **kwargs) -> <span class="fn">ToolResult</span>:\n        raw = self._bridge.<span class="fn">call_tool</span>(self._tool_name, kwargs)\n        <span class="kw">return</span> self.<span class="fn">_normalize</span>(raw)\n\n<span class="kw">class</span> <span class="fn">MCPBridge</span>:\n    <span class="kw">def</span> <span class="fn">register_all</span>(self, registry):\n        <span class="kw">for</span> spec <span class="kw">in</span> self.<span class="fn">discover_tools</span>():\n            registry.<span class="fn">register</span>(<span class="fn">MCPToolAdapter</span>(spec))' data-file="tools/mcp.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T11</span><span class="tl-name">MCP Client Bridge & Adapter</span><span class="tl-count">37 &#10003;</span><span class="tl-chevron">&#9654;</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>외부 MCP 서버의 도구를 MCPTransport Protocol로 발견하고, MCPToolAdapter가 BaseTool 규격으로 래핑하여 ToolRegistry에 일괄 등록. 모든 호출은 BudgetTracker 예산망을 반드시 경유합니다.</p></div></div>
+      </div>
+      <div class="tl-item" data-code='<span class="kw">class</span> <span class="fn">RAGManager</span>:\n    <span class="kw">def</span> <span class="fn">ingest</span>(self, text, source=<span class="str">""</span>):\n        chunks = <span class="fn">chunk_text</span>(text, self._config.chunk_size)\n        embeddings = self._embedder.<span class="fn">embed</span>(chunks)\n        self._store.<span class="fn">add</span>(ids, embeddings, chunks)\n\n    <span class="kw">def</span> <span class="fn">query</span>(self, question, top_k=<span class="nm">5</span>):\n        emb = self._embedder.<span class="fn">embed</span>([question])[<span class="nm">0</span>]\n        <span class="kw">return</span> self._store.<span class="fn">query</span>(emb, top_k)' data-file="rag/manager.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T12</span><span class="tl-name">Domain RAG Pipeline</span><span class="tl-count">50 &#10003;</span><span class="tl-chevron">&#9654;</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>문서를 청킹하고 임베딩하여 InMemoryVectorStore에 인덱싱하는 RAGManager. KnowledgeSearchTool이 BaseTool로 ToolRegistry에 등록되어 에이전트가 도메인 지식을 검색할 수 있습니다. EmbeddingProvider/VectorStore 모두 Protocol 기반 교체 가능.</p></div></div>
+      </div>
+      <div class="tl-item" data-code='<span class="kw">class</span> <span class="fn">HITLInterceptor</span>:\n    <span class="kw">def</span> <span class="fn">__call__</span>(self, task, context):\n        triggers = self._policy.<span class="fn">check</span>(task, budget_ratio)\n        <span class="kw">if not</span> triggers:\n            <span class="kw">return</span> <span class="str">"approve"</span>\n        <span class="kw">return</span> self._prompt_fn(task, triggers)\n\n<span class="cm"># Rich CLI: Live dashboard + HITL approval</span>\n<span class="kw">with</span> <span class="fn">Live</span>(layout, refresh_per_second=<span class="nm">4</span>) <span class="kw">as</span> live:\n    <span class="kw">for</span> step <span class="kw">in</span> orchestrator.<span class="fn">stream</span>(goal):\n        live.<span class="fn">update</span>(<span class="fn">build_layout</span>(state))' data-file="hitl.py + cli.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T13</span><span class="tl-name">Human-in-the-Loop & Rich CLI</span><span class="tl-count">57 &#10003;</span><span class="tl-chevron">&#9654;</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>HITLPolicy가 파괴적 명령, 예산 경고, 과다 재시도를 탐지하면 HITLInterceptor가 Rich 프롬프트로 사용자에게 [Y/N] 승인을 요청. Rich Live 대시보드가 Plan Table, Activity Log, Budget Gauge를 실시간 렌더링합니다.</p></div></div>
+      </div>
+    </div>
+
+    <div class="tl-phase fade-up">
+      <div class="tl-phase-label">Phase 5 — Production Launch</div>
+      <div class="tl-item" data-code='<span class="kw">def</span> <span class="fn">build_orchestrator</span>(args):\n    provider = <span class="fn">AnthropicProvider</span>()\n    runtime = <span class="fn">DockerRuntime</span>()\n    gate = <span class="fn">BudgetGate</span>(provider=provider)\n    sandbox = <span class="fn">SandboxExecutor</span>(runtime=runtime)\n    registry = <span class="fn">ToolRegistry</span>(tracker=gate.tracker)\n    detector = <span class="fn">SemanticLoopDetector</span>()\n    interceptor = <span class="fn">create_hitl_interceptor</span>(gate.tracker)\n    <span class="kw">return</span> <span class="fn">OrchestratorGraph</span>(\n        gate, sandbox, registry=registry,\n        detector=detector, approval_callback=interceptor)' data-file="main.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T14</span><span class="tl-name">Production Entrypoint & DI Root</span><span class="tl-count">&#9733;</span><span class="tl-chevron">&#9654;</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>모든 프로덕션 컴포넌트를 하나의 DI Root(main.py)에서 조립하는 최종 엔트리포인트. AnthropicProvider, DockerRuntime, ToolRegistry, SemanticLoopDetector, TelemetryManager, HITLInterceptor를 실체화하고 OrchestratorGraph에 주입합니다. argparse로 --goal, --auto-approve, --max-tokens 등을 지원하며, 단일 실행 모드와 인터랙티브 REPL 모드를 모두 제공합니다.</p></div></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -601,7 +626,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
 <section id="modules">
   <div class="container">
     <div class="sec-eyebrow fade-up">Module Architecture</div>
-    <div class="sec-title fade-up" data-delay="1">Nine Pillars of Kappa</div>
+    <div class="sec-title fade-up" data-delay="1">Fourteen Pillars of Kappa</div>
     <p class="sec-desc fade-up" data-delay="2">각 모듈은 독립 프로토콜 기반으로 설계되어 테스트 시 Mock으로 완전 교체 가능합니다.</p>
     <div class="bento">
       <div class="b-card b-wide fade-up"><div class="b-icon amber">$</div><h3>kappa.budget</h3><p><strong>BudgetTracker</strong> — 스레드 안전 토큰/비용 추적. RLock 기반.<br><strong>BudgetGate</strong> — LLM 호출 래퍼. pre_check → call → record_usage.<br><strong>LLMProvider</strong> — Protocol. AnthropicProvider 구현체 제공.</p></div>
@@ -613,6 +638,10 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
       <div class="b-card fade-up" data-delay="2"><div class="b-icon green">I</div><h3>kappa.infra</h3><p><strong>SyncSessionLane</strong> — Per-key Lock 자원 직렬화.<br><strong>jitter_backoff</strong> — Decorrelated Jitter 백오프.</p></div>
       <div class="b-card b-wide fade-up" data-delay="3"><div class="b-icon indigo">O</div><h3>kappa.graph.orchestrator</h3><p><strong>OrchestratorGraph</strong> — LangGraph Super-Graph 오케스트레이터. Planner/Reviewer — LLM 기반 DAG 분해 & Quality Gate.<br><strong>SubTask</strong> — TypedDict DAG 노드, 병렬 디스패치.</p></div>
       <div class="b-card fade-up" data-delay="4"><div class="b-icon amber">R</div><h3>kappa.telemetry</h3><p><strong>TelemetryManager</strong> — JSONL 궤적 기록기.<br><strong>TrajectoryRecord</strong> — think/critique/score.<br><strong>summary()</strong> — 집계 통계.</p></div>
+      <div class="b-card b-wide fade-up"><div class="b-icon indigo">M</div><h3>kappa.tools.mcp</h3><p><strong>MCPBridge</strong> — 외부 MCP 서버 연결/탐색/호출. JSON-RPC 2.0 프로토콜.<br><strong>MCPToolAdapter</strong> — MCP 도구를 BaseTool로 래핑. mcp:서버:도구 네임스페이스.<br><strong>MCPTransport</strong> — Protocol. stdio/SSE 교체 가능.</p></div>
+      <div class="b-card fade-up" data-delay="1"><div class="b-icon green">K</div><h3>kappa.rag</h3><p><strong>RAGManager</strong> — 청킹/임베딩/인덱싱 파이프라인.<br><strong>KnowledgeSearchTool</strong> — BaseTool 준수 검색 도구.<br><strong>InMemoryVectorStore</strong> — 코사인 유사도.</p></div>
+      <div class="b-card fade-up" data-delay="2"><div class="b-icon amber">H</div><h3>kappa.hitl</h3><p><strong>HITLPolicy</strong> — 예산/파괴적 명령/재시도 3종 트리거.<br><strong>HITLInterceptor</strong> — 콜백 기반 승인 개입.<br><strong>ApprovalPrompt</strong> — Protocol. 감사 추적.</p></div>
+      <div class="b-card fade-up" data-delay="3"><div class="b-icon blue">C</div><h3>kappa.cli</h3><p><strong>Rich Live Dashboard</strong> — Plan Table, Activity Log.<br><strong>Budget Gauge</strong> — 실시간 토큰/비용 표시.<br><strong>HITL Prompt</strong> — [Y/N] 승인 대화.</p></div>
     </div>
 
     <div class="dep-block fade-up">
@@ -632,8 +661,18 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
 <span class="fn">OrchestratorGraph</span> ← <span class="fn">SelfHealingGraph</span> (Sub-Graph worker)
 <span class="fn">TelemetryManager</span> ← <span class="fn">OrchestratorGraph</span>._reviewer_node
 
-<span class="cm"># 통합: 9개 모듈이 계층적 Super-Graph로 동작</span>
-<span class="fn">OrchestratorGraph</span>.<span class="fn">run</span>(<span class="str">"goal"</span>) → <span class="kw">SUCCESS</span> | <span class="kw">FAILED</span></pre>
+<span class="cm"># Phase 4: 프로덕션 MCP/RAG/HITL 연동</span>
+<span class="fn">MCPBridge</span>        ← <span class="fn">MCPToolAdapter</span> → <span class="fn">ToolRegistry</span>
+<span class="fn">RAGManager</span>       ← <span class="fn">KnowledgeSearchTool</span> → <span class="fn">ToolRegistry</span>
+<span class="fn">HITLInterceptor</span>  ← <span class="fn">OrchestratorGraph</span>.approval_callback
+<span class="fn">Rich Live</span>        ← <span class="fn">OrchestratorGraph</span>.<span class="fn">stream</span>()
+
+<span class="cm"># Phase 5: 프로덕션 런칭 — DI Root 조립</span>
+<span class="fn">main.py</span>           ← <span class="fn">build_orchestrator</span>() DI Root
+                     모든 실체 컴포넌트를 조립 → <span class="fn">run_dashboard</span>()
+
+<span class="cm"># 통합: 15개 모듈이 계층적 Super-Graph + 프로덕션 엔트리포인트로 동작</span>
+<span class="fn">python -m kappa.main</span> <span class="str">--goal "..."</span> → <span class="kw">SUCCESS</span> | <span class="kw">FAILED</span></pre>
       </div>
     </div>
   </div>
@@ -644,7 +683,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
   <div class="container">
     <div class="sec-eyebrow fade-up" style="text-align:center">Verification</div>
     <div class="sec-title fade-up" data-delay="1" style="text-align:center">Test Results</div>
-    <p class="sec-desc fade-up" data-delay="2" style="text-align:center;margin:0 auto 2rem">Phase 1–3의 모든 작업은 자동화된 테스트로 동작을 증명합니다.</p>
+    <p class="sec-desc fade-up" data-delay="2" style="text-align:center;margin:0 auto 2rem">Phase 1–4의 모든 작업은 자동화된 테스트로 동작을 증명합니다.</p>
 
     <div class="test-phase-label fade-up">Phase 1</div>
     <div class="test-rings fade-up">
@@ -667,8 +706,16 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
       <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill green" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="32">0</div><div class="ring-label">Telemetry</div></div>
     </div>
 
+    <div class="test-phase-label fade-up">Phase 4</div>
+    <div class="test-rings fade-up">
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill indigo" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="37">0</div><div class="ring-label">MCP Bridge</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill indigo" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="50">0</div><div class="ring-label">RAG Pipeline</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill indigo" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="32">0</div><div class="ring-label">HITL</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill indigo" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="25">0</div><div class="ring-label">CLI Dashboard</div></div>
+    </div>
+
     <div class="test-total fade-up">
-      <div class="big"><em>250</em> / 250</div>
+      <div class="big"><em>394</em> / 394</div>
       <div class="sub">All Tests Passing</div>
     </div>
   </div>
@@ -684,8 +731,8 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
       <a href="#architecture">Architecture</a>
       <a href="#timeline">Timeline</a>
     </div>
-    <p>Kappa v0.3 — Phase 3: Multi-Agent Orchestration</p>
-    <p style="margin-top:.3rem">Built with deterministic guardrails, semantic defense & hierarchical orchestration.</p>
+    <p>Kappa v0.5 — Phase 5: Production Launch</p>
+    <p style="margin-top:.3rem">Autonomous self-healing agent OS with deterministic guardrails, 9-pillar architecture & production entrypoint.</p>
   </div>
 </footer>
 
@@ -720,18 +767,19 @@ document.querySelectorAll('.test-rings').forEach(function(el){rObs.observe(el)})
 /* ── Terminal Typing ───────────────────────────────────── */
 (function(){
   var lines=[
-    {t:'kappa --version',c:'cmd'},{t:'v0.3.0 (Phase 3: Multi-Agent Orchestration)',c:'out'},
+    {t:'kappa --version',c:'cmd'},{t:'v0.5.0 (Phase 5: Production Launch)',c:'out'},
     {t:'',c:''},{t:'kappa status',c:'cmd'},
     {t:'┌──────────────────────────────────────────┐',c:'out'},
-    {t:'│  Modules: 9 loaded    Tests: 250 passed  │',c:'out'},
-    {t:'│  Pipeline Layers: 5   Safety: 9 layers   │',c:'out'},
+    {t:'│  Modules: 15 loaded   Tests: 394 passed  │',c:'out'},
+    {t:'│  MCP: 3 tools   RAG: ready   HITL: on    │',c:'out'},
     {t:'└──────────────────────────────────────────┘',c:'out'},
     {t:'',c:''},{t:'kappa run "Build a REST API"',c:'cmd'},
     {t:'[planner] Decomposing goal → 3 subtasks',c:'step'},
+    {t:'[hitl] task-001 auto-approved',c:'step'},
     {t:'[dispatch] Spawning 3 workers...',c:'step'},
     {t:'[worker-1] coder → parser → linter → sandbox ✓',c:'ok'},
     {t:'[worker-2] coder → parser → linter → sandbox ✓',c:'ok'},
-    {t:'[worker-3] coder → parser → linter → sandbox ✓',c:'ok'},
+    {t:'[worker-3] mcp:github:search → RAG inject ✓',c:'ok'},
     {t:'[reviewer] Quality Gate: APPROVED',c:'ok'},
     {t:'[finalize] Merging results → output ready',c:'ok'},
     {t:'',c:''},{t:'✓ Orchestration complete (3/3 tasks passed)',c:'done'},
@@ -859,7 +907,7 @@ function toggleTl(hdr){
 
 /* ── Marquee ───────────────────────────────────────────── */
 (function(){
-  var items=['Python 3.11+','LangGraph','Docker','pytest','Anthropic','TypedDict','asyncio','ThreadPoolExecutor','JSONL','StateGraph'];
+  var items=['Python 3.11+','LangGraph','Docker','pytest','Anthropic','MCP Protocol','RAG Pipeline','Rich CLI','HITL','TypedDict','asyncio','ThreadPoolExecutor','JSONL','StateGraph'];
   var m=document.getElementById('marquee');
   var html=items.map(function(s){return'<span>'+s+'</span>'}).join('');
   m.innerHTML=html+html; // duplicate for seamless loop

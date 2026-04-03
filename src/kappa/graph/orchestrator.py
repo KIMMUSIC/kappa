@@ -22,7 +22,7 @@ import json
 import re
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TypedDict
+from typing import Any, Callable, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -132,6 +132,8 @@ class OrchestratorGraph:
         detector: SemanticLoopDetector | None = None,
         session_lane: SyncSessionLane | None = None,
         telemetry: TelemetryManager | None = None,
+        *,
+        approval_callback: Callable[[dict[str, Any], dict[str, Any] | None], str] | None = None,
     ) -> None:
         self._gate = gate
         self._sandbox = sandbox
@@ -141,6 +143,7 @@ class OrchestratorGraph:
         self._detector = detector
         self._session_lane = session_lane
         self._telemetry = telemetry
+        self._approval_callback = approval_callback
         self._app = self._build()
 
     # ── LLM helpers ─────────────────────────────────────────────────
@@ -244,6 +247,35 @@ class OrchestratorGraph:
 
         if not ready:
             return {"global_status": "failed"}
+
+        # ── Phase 4: HITL approval gate ────────────────────────────
+        if self._approval_callback:
+            approved_ready: list[SubTask] = []
+            denied_plan_updates: dict[str, SubTask] = {}
+            for task in ready:
+                decision = self._approval_callback(task, None)
+                if decision == "deny":
+                    denied_plan_updates[task["id"]] = {
+                        **task,
+                        "status": "rejected",
+                        "critique": "Operator denied execution",
+                    }
+                else:
+                    approved_ready.append(task)
+            ready = approved_ready
+            if denied_plan_updates:
+                plan = state["plan"]
+                updated = [
+                    denied_plan_updates.get(t["id"], t) for t in plan
+                ]
+                if not ready:
+                    return {
+                        "plan": updated,
+                        "rejected_count": state["rejected_count"] + len(denied_plan_updates),
+                        "global_status": "reviewing",
+                    }
+                # Merge denied updates into plan for later
+                state = {**state, "plan": updated}
 
         results: dict[str, dict] = {}
         max_w = min(self._orch_config.max_parallel_workers, len(ready))

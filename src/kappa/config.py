@@ -98,3 +98,25 @@ class TelemetryConfig:
     log_path: str = os.getenv(
         "TELEMETRY_LOG_PATH", ".kappa_telemetry/trajectories.jsonl"
     )
+
+
+# ── Phase 4 additions ───────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class MCPConfig:
+    """MCP bridge client configuration."""
+
+    request_timeout: float = float(os.getenv("MCP_REQUEST_TIMEOUT", "30.0"))
+    tool_name_prefix: str = "mcp"
+    max_retries: int = int(os.getenv("MCP_MAX_RETRIES", "2"))
+
+
+@dataclass(frozen=True)
+class RAGConfig:
+    """RAG pipeline configuration."""
+
+    chunk_size: int = int(os.getenv("RAG_CHUNK_SIZE", "512"))
+    chunk_overlap: int = int(os.getenv("RAG_CHUNK_OVERLAP", "64"))
+    top_k: int = int(os.getenv("RAG_TOP_K", "5"))
+    min_score: float = float(os.getenv("RAG_MIN_SCORE", "0.0"))
