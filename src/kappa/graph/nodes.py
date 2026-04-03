@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from kappa.graph.state import AgentState
 
-# ── XML anchor patterns (GEODE Layer 1) ─────────────────────────
+# ── XML anchor patterns (Layer 1) ───────────────────────────────
 
 THINK_PATTERN = re.compile(r"<think>(.*?)</think>", re.DOTALL)
 ACTION_PATTERN = re.compile(r"<action>(.*?)</action>", re.DOTALL)
@@ -49,7 +49,7 @@ Rules:
 - Do NOT use markdown code fences inside <action>."""
 
 
-# ── Parser (GEODE Layer 1: Atomic XML Matching) ─────────────────
+# ── Parser (Layer 1: Atomic XML Matching) ───────────────────────
 
 
 @dataclass(frozen=True)
@@ -134,7 +134,7 @@ def parse_llm_output(raw: str) -> ParseResult:
     )
 
 
-# ── Linter (GEODE Layer 2: Syntactic Broom) ─────────────────────
+# ── Linter (Layer 2: Syntactic Broom) ───────────────────────────
 
 
 def lint_code(code: str) -> str | None:

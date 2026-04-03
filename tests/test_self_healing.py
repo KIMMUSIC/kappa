@@ -86,7 +86,7 @@ def _make_components(
     return gate, sandbox
 
 
-# ── Parser unit tests (GEODE Layer 1) ──────────────────────────
+# ── Parser unit tests (Layer 1) ────────────────────────────────
 
 
 class TestParser:
@@ -124,7 +124,7 @@ class TestParser:
         assert result.error is None
 
 
-# ── Linter unit tests (GEODE Layer 2) ──────────────────────────
+# ── Linter unit tests (Layer 2) ────────────────────────────────
 
 
 class TestLinter:

@@ -8,7 +8,7 @@ V2 additions:
   - Semantic loop detection: coder checks for repetitive behaviour.
   - Memory context: VFS content injected into the system prompt.
 
-GEODE layers covered:
+Verification layers covered:
   Layer 1 — Atomic XML Matching (parser node)
   Layer 2 — Syntactic Broom (linter node)
   Layer 4 — Context-Aware Self-Healing (conditional edges)

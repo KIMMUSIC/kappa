@@ -12,7 +12,7 @@
 | 테스트 수 변경 | Test Results 섹션 숫자 + 총합 (47/47 등) |
 | 새 모듈 추가 | Module Cards + Architecture SVG 다이어그램 |
 | 새 Task/Phase 완료 | Development Timeline 섹션에 추가 |
-| GEODE 파이프라인 변경 | Pipeline 섹션 레이어 갱신 |
+| 검증 파이프라인 변경 | Pipeline 섹션 레이어 갱신 |
 | 노드/엣지 추가·삭제 | Architecture SVG 플로우 다이어그램 반영 |
 
 ## Color Palette (docs only)
