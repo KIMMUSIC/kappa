@@ -58,3 +58,43 @@ class AgentConfig:
     sandbox: SandboxConfig = field(default_factory=SandboxConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     semantic: SemanticConfig = field(default_factory=SemanticConfig)
+
+
+# ── Phase 3 additions ───────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class BackoffConfig:
+    """Decorrelated Jitter exponential backoff thresholds."""
+
+    base_delay: float = float(os.getenv("BACKOFF_BASE_DELAY", "1.0"))
+    max_delay: float = float(os.getenv("BACKOFF_MAX_DELAY", "60.0"))
+    max_retries: int = int(os.getenv("BACKOFF_MAX_RETRIES", "5"))
+
+
+@dataclass(frozen=True)
+class SessionLaneConfig:
+    """Per-key serialisation lane thresholds."""
+
+    timeout: float = float(os.getenv("SESSION_LANE_TIMEOUT", "30.0"))
+
+
+@dataclass(frozen=True)
+class OrchestratorConfig:
+    """Orchestrator Super-Graph configuration (Task 2)."""
+
+    max_rejections: int = 3
+    max_subtasks: int = 10
+    max_parallel_workers: int = 3
+    planner_model: str = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
+    reviewer_model: str = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
+
+
+@dataclass(frozen=True)
+class TelemetryConfig:
+    """Agent-RRM telemetry configuration (Task 3)."""
+
+    enabled: bool = True
+    log_path: str = os.getenv(
+        "TELEMETRY_LOG_PATH", ".kappa_telemetry/trajectories.jsonl"
+    )

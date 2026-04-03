@@ -250,7 +250,7 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
 <!-- Nav -->
 <nav>
   <div class="container">
-    <div class="logo">KAPPA <span>v0.2</span></div>
+    <div class="logo">KAPPA <span>v0.3</span></div>
     <ul>
       <li><a href="#architecture">Architecture</a></li>
       <li><a href="#pipeline">Pipeline</a></li>
@@ -264,19 +264,19 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
 <!-- Hero -->
 <section class="hero">
   <div class="hero-content">
-    <div class="version reveal">PHASE 2 &mdash; COGNITIVE AUTONOMY</div>
+    <div class="version reveal">PHASE 3 &mdash; MULTI-AGENT ORCHESTRATION</div>
     <h1 class="reveal reveal-delay-1">KAPPA</h1>
     <p class="subtitle reveal reveal-delay-2">
       LLM의 확률적 출력을 결정론적으로 통제하는 자율 수행 에이전트 하네스.
-      예산 방어, 샌드박스 격리, 자가 치유 루프에 장기 기억, 도구 호출, 의미론적 방어를 이식.
+      예산 방어, 샌드박스 격리, 자가 치유 루프 위에 다중 에이전트 오케스트레이션과 Agent-RRM 텔레메트리를 구축.
     </p>
     <div class="metrics reveal reveal-delay-3">
       <div class="metric">
-        <div class="metric-value" data-target="147">0</div>
+        <div class="metric-value" data-target="250">0</div>
         <div class="metric-label">Tests Passing</div>
       </div>
       <div class="metric">
-        <div class="metric-value" data-target="6">0</div>
+        <div class="metric-value" data-target="9">0</div>
         <div class="metric-label">Safety Layers</div>
       </div>
       <div class="metric">
@@ -294,10 +294,10 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
 <section id="architecture">
   <div class="container">
     <div class="section-label reveal">System Overview</div>
-    <div class="section-title reveal">Self-Healing State Machine V2</div>
+    <div class="section-title reveal">Hierarchical Multi-Agent Architecture</div>
     <p class="section-desc reveal">
-      5개 노드와 4개 조건부 엣지로 구성된 LangGraph 상태 머신.
-      코드 실행과 도구 호출을 분기하고, 의미론적 감지기가 반복을 조기 차단합니다.
+      상위 Orchestrator Super-Graph가 목표를 분해하고 하위 Worker(SelfHealingGraph)를 병렬 통제.
+      Quality Gate가 산출물을 검수하며, SessionLane이 자원 충돌을 방지합니다.
     </p>
 
     <!-- Flow Diagram SVG (V2) -->
@@ -428,7 +428,7 @@ footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-bottom:
     <div class="section-label reveal">Development Track</div>
     <div class="section-title reveal">Implementation Timeline</div>
     <p class="section-desc reveal">
-      Phase 1에서 방어막을 구축하고, Phase 2에서 인지적 자율성을 이식했습니다.
+      Phase 1에서 방어막을, Phase 2에서 인지적 자율성을, Phase 3에서 다중 에이전트 오케스트레이션을 구축했습니다.
       통제 없는 자율성은 재앙이기 때문입니다.
     </p>
 
@@ -604,6 +604,85 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"tool
         </div>
         <span class="status">20 TESTS PASSED</span>
       </div>
+
+      <!-- Phase 3 -->
+      <div style="margin-top:5rem;margin-bottom:3rem" class="reveal">
+        <div class="section-label">Phase 3</div>
+        <div class="section-title" style="font-size:1.3rem">Multi-Agent Orchestration</div>
+      </div>
+
+      <!-- Task 8 (P3-T1) -->
+      <div class="timeline-item active reveal">
+        <div class="task-tag">Task 8 &mdash; Infra Resilience</div>
+        <h3>SessionLane &amp; Jitter Backoff</h3>
+        <p>
+          다중 워커의 자원 경합을 막는 Per-key 세마포어(<code>SyncSessionLane</code>)와
+          Thundering Herd 현상을 방지하는 Decorrelated Jitter 지수적 백오프.
+          <code>ThreadPoolExecutor</code>와 <code>asyncio</code> 환경 모두 지원합니다.
+        </p>
+        <div class="code-block" style="margin-bottom:1rem">
+          <div class="code-block-header">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span>infra/session_lane.py</span>
+          </div>
+<pre><span class="keyword">with</span> self._meta_lock:
+    <span class="keyword">if</span> key <span class="keyword">not in</span> self._locks:
+        self._locks[key] = threading.<span class="func">Lock</span>()
+lock = self._locks[key]
+acquired = lock.<span class="func">acquire</span>(timeout=self._timeout)
+<span class="keyword">if not</span> acquired:
+    <span class="keyword">raise</span> <span class="func">SessionLaneTimeout</span>(<span class="string">f"timeout for {key}"</span>)</pre>
+        </div>
+        <span class="status">32 TESTS PASSED</span>
+      </div>
+
+      <!-- Task 9 (P3-T2) -->
+      <div class="timeline-item active reveal">
+        <div class="task-tag">Task 9 &mdash; Orchestrator</div>
+        <h3>Centralized Quality Gate Super-Graph</h3>
+        <p>
+          거대 목표를 DAG로 분해하는 <strong>Planner</strong>,
+          <code>SelfHealingGraph</code> 워커를 병렬 실행하는 <strong>Dispatcher</strong>,
+          산출물을 검수하는 <strong>Reviewer(Quality Gate)</strong>,
+          결과를 통합하는 <strong>Finalizer</strong>로 구성된 LangGraph Super-Graph.
+        </p>
+        <div class="code-block" style="margin-bottom:1rem">
+          <div class="code-block-header">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span>graph/orchestrator.py</span>
+          </div>
+<pre>graph.<span class="func">add_node</span>(<span class="string">"planner"</span>, self._planner_node)
+graph.<span class="func">add_node</span>(<span class="string">"dispatcher"</span>, self._dispatcher_node)
+graph.<span class="func">add_node</span>(<span class="string">"reviewer"</span>, self._reviewer_node)
+graph.<span class="func">add_node</span>(<span class="string">"finalizer"</span>, self._finalizer_node)
+<span class="comment"># reviewer &rarr; finalizer (done) | dispatcher (rejected) | failed</span>
+graph.<span class="func">add_conditional_edges</span>(<span class="string">"reviewer"</span>, route_after_review)</pre>
+        </div>
+        <span class="status">39 TESTS PASSED</span>
+      </div>
+
+      <!-- Task 10 (P3-T3) -->
+      <div class="timeline-item active reveal">
+        <div class="task-tag">Task 10 &mdash; Telemetry</div>
+        <h3>Agent-RRM Telemetry Pipeline</h3>
+        <p>
+          워커의 추론 궤적(<code>think</code>), Reviewer 비평(<code>critique</code>),
+          종합 점수(<code>score</code>)를 JSONL로 누적 기록하는 옵저버 패턴 수집기.
+          스레드 안전 보장, 비활성화 모드 지원, 통계 요약(<code>summary()</code>) 제공.
+        </p>
+        <div class="code-block" style="margin-bottom:1rem">
+          <div class="code-block-header">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span>telemetry/manager.py</span>
+          </div>
+<pre><span class="keyword">def</span> <span class="func">record</span>(self, trajectory: <span class="func">TrajectoryRecord</span>):
+    line = json.<span class="func">dumps</span>(<span class="func">asdict</span>(trajectory))
+    <span class="keyword">with</span> self._lock:
+        <span class="keyword">with</span> <span class="func">open</span>(self._log_path, <span class="string">"a"</span>) <span class="keyword">as</span> f:
+            f.<span class="func">write</span>(line + <span class="string">"\n"</span>)</pre>
+        </div>
+        <span class="status">32 TESTS PASSED</span>
+      </div>
     </div>
   </div>
 </section>
@@ -612,7 +691,7 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"tool
 <section id="modules" style="background:rgba(231,230,247,0.02)">
   <div class="container">
     <div class="section-label reveal">Module Architecture</div>
-    <div class="section-title reveal">Six Pillars of Kappa</div>
+    <div class="section-title reveal">Nine Pillars of Kappa</div>
     <p class="section-desc reveal">각 모듈은 독립 프로토콜 기반으로 설계되어 테스트 시 Mock으로 완전 교체 가능합니다.</p>
 
     <div class="card-grid">
@@ -670,6 +749,33 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"tool
           <strong class="text-mauve">SemanticLoopException</strong> &mdash; 조기 차단 예외.
         </p>
       </div>
+      <div class="card reveal">
+        <div class="card-icon" style="background:rgba(198,210,237,0.1);color:var(--blue)">I</div>
+        <h3>kappa.infra</h3>
+        <p>
+          <strong class="text-blue">SyncSessionLane</strong> &mdash; Per-key Lock 기반 자원 직렬화.<br>
+          <strong class="text-blue">AsyncSessionLane</strong> &mdash; asyncio.Lock 비동기 버전.<br>
+          <strong class="text-blue">jitter_backoff</strong> &mdash; AWS Decorrelated Jitter 백오프.
+        </p>
+      </div>
+      <div class="card reveal reveal-delay-1">
+        <div class="card-icon" style="background:rgba(174,163,176,0.1);color:var(--mauve-light)">O</div>
+        <h3>kappa.graph.orchestrator</h3>
+        <p>
+          <strong class="text-mauve">OrchestratorGraph</strong> &mdash; LangGraph Super-Graph 오케스트레이터.<br>
+          <strong class="text-mauve">Planner/Reviewer</strong> &mdash; LLM 기반 DAG 분해 &amp; Quality Gate.<br>
+          <strong class="text-mauve">SubTask</strong> &mdash; TypedDict DAG 노드, 병렬 디스패치.
+        </p>
+      </div>
+      <div class="card reveal reveal-delay-2">
+        <div class="card-icon" style="background:rgba(227,208,216,0.1);color:var(--pink)">R</div>
+        <h3>kappa.telemetry</h3>
+        <p>
+          <strong class="text-pink">TelemetryManager</strong> &mdash; 옵저버 패턴 JSONL 궤적 기록기.<br>
+          <strong class="text-pink">TrajectoryRecord</strong> &mdash; think/critique/score 데이터클래스.<br>
+          <strong class="text-pink">summary()</strong> &mdash; 집계 통계 (avg_score, rejection_rate).
+        </p>
+      </div>
     </div>
 
     <!-- Relationship diagram -->
@@ -688,8 +794,13 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"tool
 <span class="func">ToolRegistry</span>    &larr; <span class="func">SelfHealingGraph</span>._tool_node
 <span class="func">SemanticDetector</span> &larr; <span class="func">SelfHealingGraph</span>._parser_node
 
-<span class="comment"># 통합: 6개 모듈이 하나의 루프로 동작</span>
-<span class="func">SelfHealingGraph</span>.<span class="func">run</span>(<span class="string">"goal"</span>) &rarr; <span class="keyword">SUCCESS</span> | <span class="keyword">FAILED</span></pre>
+<span class="comment"># Phase 3: 다중 에이전트 오케스트레이션</span>
+<span class="func">SessionLane</span>     &larr; <span class="func">OrchestratorGraph</span>._execute_subtask
+<span class="func">OrchestratorGraph</span> &larr; <span class="func">SelfHealingGraph</span> (Sub-Graph worker)
+<span class="func">TelemetryManager</span> &larr; <span class="func">OrchestratorGraph</span>._reviewer_node
+
+<span class="comment"># 통합: 9개 모듈이 계층적 Super-Graph로 동작</span>
+<span class="func">OrchestratorGraph</span>.<span class="func">run</span>(<span class="string">"goal"</span>) &rarr; <span class="keyword">SUCCESS</span> | <span class="keyword">FAILED</span></pre>
       </div>
     </div>
   </div>
@@ -700,7 +811,7 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"tool
   <div class="container">
     <div class="section-label reveal">Verification</div>
     <div class="section-title reveal">Test Results</div>
-    <p class="section-desc reveal">Phase 1 &amp; 2의 모든 작업은 자동화된 테스트로 동작을 증명합니다.</p>
+    <p class="section-desc reveal">Phase 1&ndash;3의 모든 작업은 자동화된 테스트로 동작을 증명합니다.</p>
 
     <div class="section-label reveal" style="margin-top:1rem;margin-bottom:1rem">Phase 1</div>
     <div class="test-grid">
@@ -750,9 +861,28 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"tool
       </div>
     </div>
 
+    <div class="section-label reveal" style="margin-top:2.5rem;margin-bottom:1rem">Phase 3</div>
+    <div class="test-grid">
+      <div class="test-card reveal">
+        <div class="count" data-target="32">0</div>
+        <div class="label">Infra (SessionLane &amp; Jitter)</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+      <div class="test-card reveal reveal-delay-1">
+        <div class="count" data-target="39">0</div>
+        <div class="label">Orchestrator</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+      <div class="test-card reveal reveal-delay-2">
+        <div class="count" data-target="32">0</div>
+        <div class="label">Telemetry</div>
+        <div class="test-bar"><div class="test-bar-fill" data-width="100"></div></div>
+      </div>
+    </div>
+
     <div style="text-align:center;margin-top:3rem" class="reveal">
       <div style="font-family:var(--font-mono);font-size:3rem;font-weight:700;color:var(--lavender)">
-        147 / 147
+        250 / 250
       </div>
       <div style="font-size:.85rem;color:var(--text-muted);margin-top:.5rem">ALL TESTS PASSING</div>
     </div>
@@ -767,8 +897,8 @@ graph.<span class="func">add_conditional_edges</span>(<span class="string">"tool
       <a href="#architecture">Architecture</a>
       <a href="#development">Development</a>
     </div>
-    <p>Kappa v0.2 &mdash; Phase 2: Cognitive Autonomy</p>
-    <p style="margin-top:.5rem">Built with deterministic guardrails &amp; semantic defense.</p>
+    <p>Kappa v0.3 &mdash; Phase 3: Multi-Agent Orchestration</p>
+    <p style="margin-top:.5rem">Built with deterministic guardrails, semantic defense &amp; hierarchical orchestration.</p>
   </div>
 </footer>
 

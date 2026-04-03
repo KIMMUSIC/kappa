@@ -42,3 +42,14 @@ class SemanticLoopException(KappaError):
     def __init__(self, message: str, *, similarity: float = 0.0):
         self.similarity = similarity
         super().__init__(message)
+
+
+# ── Phase 3 additions ───────────────────────────────────────────
+
+
+class OrchestratorError(KappaError):
+    """Raised for orchestrator-level failures (planning, rejection limit, etc.)."""
+
+
+class SessionLaneTimeout(KappaError):
+    """Raised when a SessionLane lock cannot be acquired within the timeout."""
