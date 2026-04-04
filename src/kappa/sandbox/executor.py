@@ -8,6 +8,7 @@ container that is destroyed after completion.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from kappa.config import SandboxConfig
@@ -36,6 +37,7 @@ class ContainerRuntime(Protocol):
         mem_limit: str,
         network_disabled: bool,
         timeout: int,
+        volumes: dict[str, dict[str, str]] | None = None,
     ) -> SandboxResult: ...
 
 
@@ -65,6 +67,7 @@ class DockerRuntime:
         mem_limit: str,
         network_disabled: bool,
         timeout: int,
+        volumes: dict[str, dict[str, str]] | None = None,
     ) -> SandboxResult:
         container = None
         timed_out = False
@@ -74,6 +77,7 @@ class DockerRuntime:
                 command=command,
                 mem_limit=mem_limit,
                 network_disabled=network_disabled,
+                volumes=volumes or {},
                 detach=True,
                 stdout=True,
                 stderr=True,
@@ -158,10 +162,25 @@ class SandboxExecutor:
                 (e.g., Docker daemon unavailable).  User-code errors are
                 captured as non-zero exit_code, not exceptions.
         """
+        volumes: dict[str, dict[str, str]] | None = None
+        if self._config.workspace_dir:
+            host_dir = Path(self._config.workspace_dir).resolve()
+            if host_dir == host_dir.anchor or host_dir == Path(host_dir.anchor):
+                raise SandboxExecutionError(
+                    f"Refusing to mount filesystem root as workspace: {host_dir}"
+                )
+            host_dir.mkdir(parents=True, exist_ok=True)
+            volumes = {
+                str(host_dir): {
+                    "bind": self._config.container_workspace_path,
+                    "mode": "rw",
+                }
+            }
         return self._runtime.run(
             image=self._config.docker_image,
             command=["python", "-c", code],
             mem_limit=f"{self._config.memory_limit_mb}m",
             network_disabled=not self._config.network_enabled,
             timeout=self._config.timeout_seconds,
+            volumes=volumes,
         )

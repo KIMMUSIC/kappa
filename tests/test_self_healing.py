@@ -68,6 +68,7 @@ class ScriptedRuntime:
         mem_limit: str,
         network_disabled: bool,
         timeout: int,
+        volumes: dict | None = None,
     ) -> SandboxResult:
         self.calls.append(command[-1] if command else "")
         result = self._results[min(self._index, len(self._results) - 1)]

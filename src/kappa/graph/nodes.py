@@ -44,9 +44,16 @@ Rules:
 - You MUST include a <think> block.
 - Include EITHER <action> OR <tool_call>, NOT both.
 - The <action> block MUST contain ONLY valid, executable Python code.
+- If the task requires creating files (HTML, CSS, JS, etc.), write Python code \
+that creates those files on disk (e.g., using open() and write()). \
+Do NOT just describe what the file should contain — produce the actual file.
 - The <tool_call> block MUST contain valid JSON with "name" and "kwargs".
 - Do NOT include any text outside these blocks.
-- Do NOT use markdown code fences inside <action>."""
+- Do NOT use markdown code fences inside <action>.
+- Before creating or modifying a file, check if it already exists using os.path.exists().
+- If modifying an existing file, read its current contents first with open(..., 'r'), \
+then make targeted changes — do NOT overwrite with completely new unrelated content.
+- Preserve existing functionality when updating files."""
 
 
 # ── Parser (Layer 1: Atomic XML Matching) ───────────────────────
@@ -157,14 +164,25 @@ def build_messages(state: AgentState) -> list[dict]:
 
     If ``memory_context`` is present in the state, it is prepended to
     the system prompt so the agent can recall long-term knowledge.
+
+    If ``workspace_path`` is set, workspace file-writing instructions
+    are injected into the system prompt.
     """
     goal = state["goal"]
     error_history = state["error_history"]
     attempt = state["attempt"]
     max_attempts = state["max_attempts"]
     memory_context = state.get("memory_context", "")
+    workspace_path = state.get("workspace_path", "")
 
     prompt = SYSTEM_PROMPT
+    if workspace_path:
+        prompt += (
+            f"\n- All output files MUST be written under the {workspace_path} directory."
+            f"\n- Example: open('{workspace_path}/output.html', 'w') instead of open('output.html', 'w')."
+            f"\n- The {workspace_path} directory is persisted — files written there survive after execution."
+            f"\n- Files written outside {workspace_path} will be lost when the container is destroyed."
+        )
     if memory_context:
         prompt = (
             f"[Long-term Memory]\n{memory_context}\n\n"

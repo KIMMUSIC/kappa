@@ -31,3 +31,4 @@ class AgentState(TypedDict):
     status: str  # running | success | parse_error | lint_error | runtime_error | tool_call | tool_error
     tool_calls: list[dict]
     memory_context: str
+    workspace_path: str  # container-side workspace mount path, empty if no mount

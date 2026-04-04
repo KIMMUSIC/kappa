@@ -71,7 +71,7 @@ class _ThreadSafeProvider:
 class _FakeRuntime:
     """Minimal sandbox runtime that always succeeds."""
 
-    def run(self, *, image, command, mem_limit, network_disabled, timeout):
+    def run(self, *, image, command, mem_limit, network_disabled, timeout, volumes=None):
         code = command[-1] if command else ""
         return SandboxResult(
             exit_code=0,
@@ -112,6 +112,7 @@ def _successful_worker_result(goal: str = "test") -> dict:
         "status": "success",
         "tool_calls": [],
         "memory_context": "",
+        "workspace_path": "",
     }
 
 
@@ -133,6 +134,11 @@ def _review_json(approved: bool, score: float = 0.9, critique: str = "") -> str:
             "score": score,
         }
     )
+
+
+def _plan_review_approve() -> str:
+    """Plan reviewer response that approves the plan."""
+    return json.dumps({"approved": True, "critique": "", "score": 0.9})
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -182,7 +188,7 @@ class TestPlannerNode:
         state = orch._initial_state("Build something")
         result = orch._planner_node(state)
 
-        assert result["global_status"] == "dispatching"
+        assert result["global_status"] == "plan_review"
         assert len(result["plan"]) == 2
         assert result["plan"][0]["id"] == "task-001"
         assert result["plan"][0]["status"] == "pending"
@@ -227,7 +233,7 @@ class TestDispatcherNode:
             "plan": plan,
             "completed": completed or [],
             "rejected_count": 0,
-            "max_rejections": 3,
+            "max_retries_per_task": 3,
             "global_status": "dispatching",
             "final_output": "",
             "telemetry_records": [],
@@ -325,7 +331,7 @@ class TestReviewerNode:
             "plan": plan,
             "completed": completed or [],
             "rejected_count": rejected_count,
-            "max_rejections": 5,
+            "max_retries_per_task": 5,
             "global_status": "reviewing",
             "final_output": "",
             "telemetry_records": [],
@@ -424,16 +430,16 @@ class TestRouting:
         orch = self._make_orch()
         state: OrchestratorState = {
             "main_goal": "", "plan": [{"id": "t1"}],  # type: ignore[typeddict-item]
-            "completed": [], "rejected_count": 0, "max_rejections": 3,
+            "completed": [], "rejected_count": 0, "max_retries_per_task": 3,
             "global_status": "dispatching", "final_output": "", "telemetry_records": [],
         }
-        assert orch._route_after_plan(state) == "dispatcher"
+        assert orch._route_after_plan(state) == "plan_reviewer"
 
     def test_route_after_plan_failure(self):
         orch = self._make_orch()
         state: OrchestratorState = {
             "main_goal": "", "plan": [],
-            "completed": [], "rejected_count": 0, "max_rejections": 3,
+            "completed": [], "rejected_count": 0, "max_retries_per_task": 3,
             "global_status": "failed", "final_output": "", "telemetry_records": [],
         }
         assert orch._route_after_plan(state) == "failed"
@@ -445,7 +451,7 @@ class TestRouting:
                 {"id": "t1", "goal": "", "depends_on": [], "status": "completed",
                  "result": None, "critique": "", "attempts": 0},
             ],
-            "completed": ["t1"], "rejected_count": 0, "max_rejections": 3,
+            "completed": ["t1"], "rejected_count": 0, "max_retries_per_task": 3,
             "global_status": "reviewing", "final_output": "", "telemetry_records": [],
         }
         assert orch._route_after_review(state) == "finalizer"
@@ -457,19 +463,19 @@ class TestRouting:
                 {"id": "t1", "goal": "", "depends_on": [], "status": "rejected",
                  "result": None, "critique": "bad", "attempts": 1},
             ],
-            "completed": [], "rejected_count": 1, "max_rejections": 3,
+            "completed": [], "rejected_count": 1, "max_retries_per_task": 3,
             "global_status": "reviewing", "final_output": "", "telemetry_records": [],
         }
         assert orch._route_after_review(state) == "dispatcher"
 
-    def test_route_after_review_max_rejections(self):
+    def test_route_after_review_task_failed(self):
         orch = self._make_orch()
         state: OrchestratorState = {
             "main_goal": "", "plan": [
-                {"id": "t1", "goal": "", "depends_on": [], "status": "rejected",
+                {"id": "t1", "goal": "", "depends_on": [], "status": "failed",
                  "result": None, "critique": "bad", "attempts": 3},
             ],
-            "completed": [], "rejected_count": 3, "max_rejections": 3,
+            "completed": [], "rejected_count": 3, "max_retries_per_task": 3,
             "global_status": "reviewing", "final_output": "", "telemetry_records": [],
         }
         assert orch._route_after_review(state) == "failed"
@@ -492,7 +498,7 @@ class TestFinalizerNode:
         ]
         state: OrchestratorState = {
             "main_goal": "Goal", "plan": plan,
-            "completed": ["t1", "t2"], "rejected_count": 0, "max_rejections": 3,
+            "completed": ["t1", "t2"], "rejected_count": 0, "max_retries_per_task": 3,
             "global_status": "reviewing", "final_output": "", "telemetry_records": [],
         }
         gate, _ = _make_gate([])
@@ -593,11 +599,11 @@ class TestOrchestratorRejection:
         review_reject = _review_json(approved=False, score=0.3, critique="Bad output")
         review_approve = _review_json(approved=True, score=0.9)
 
-        gate, _ = _make_gate([plan_resp, review_reject, review_approve])
+        gate, _ = _make_gate([plan_resp, _plan_review_approve(), review_reject, review_approve])
         orch = OrchestratorGraph(
             gate=gate,
             sandbox=_make_sandbox(),
-            orchestrator_config=OrchestratorConfig(max_rejections=5),
+            orchestrator_config=OrchestratorConfig(max_retries_per_task=5),
         )
 
         call_count = {"n": 0}
@@ -614,17 +620,17 @@ class TestOrchestratorRejection:
         assert result["rejected_count"] == 1
         assert len(result["telemetry_records"]) == 2
 
-    def test_max_rejections_triggers_failure(self):
-        """Repeated rejections beyond max_rejections → failed."""
+    def test_max_retries_per_task_triggers_failure(self):
+        """Repeated rejections beyond max_retries_per_task → failed."""
         plan_resp = _plan_json(("task-001", "Impossible", []))
         reject = _review_json(approved=False, score=0.1, critique="Still wrong")
 
-        # Enough rejects to exceed max_rejections=2
-        gate, _ = _make_gate([plan_resp, reject, reject, reject])
+        # Enough rejects to exceed max_retries_per_task=2
+        gate, _ = _make_gate([plan_resp, _plan_review_approve(), reject, reject, reject])
         orch = OrchestratorGraph(
             gate=gate,
             sandbox=_make_sandbox(),
-            orchestrator_config=OrchestratorConfig(max_rejections=2),
+            orchestrator_config=OrchestratorConfig(max_retries_per_task=2),
         )
 
         with patch.object(
@@ -685,6 +691,7 @@ class TestSessionLaneIntegration:
 
         gate, _ = _make_gate([
             plan_resp,
+            _plan_review_approve(),
             worker_code, worker_code,  # workers
             review_1, review_2,
         ])
@@ -714,7 +721,7 @@ class TestOrchestratorWithRealWorkers:
         worker_code = '<think>I will print hello</think>\n<action>print("hello")</action>'
         review_resp = _review_json(approved=True, score=0.95)
 
-        gate, _ = _make_gate([plan_resp, worker_code, review_resp])
+        gate, _ = _make_gate([plan_resp, _plan_review_approve(), worker_code, review_resp])
         orch = OrchestratorGraph(
             gate=gate,
             sandbox=_make_sandbox(),
@@ -768,11 +775,11 @@ class TestBackwardCompatibility:
 class TestOrchestratorConfig:
     def test_defaults(self):
         cfg = OrchestratorConfig()
-        assert cfg.max_rejections == 3
+        assert cfg.max_retries_per_task == 3
         assert cfg.max_subtasks == 10
         assert cfg.max_parallel_workers == 3
 
     def test_override(self):
-        cfg = OrchestratorConfig(max_rejections=5, max_subtasks=20)
-        assert cfg.max_rejections == 5
+        cfg = OrchestratorConfig(max_retries_per_task=5, max_subtasks=20)
+        assert cfg.max_retries_per_task == 5
         assert cfg.max_subtasks == 20

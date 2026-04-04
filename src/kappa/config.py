@@ -29,6 +29,8 @@ class SandboxConfig:
     memory_limit_mb: int = int(os.getenv("SANDBOX_MEMORY_LIMIT_MB", "256"))
     network_enabled: bool = False
     docker_image: str = "python:3.11-slim"
+    workspace_dir: str | None = os.getenv("SANDBOX_WORKSPACE_DIR", None)
+    container_workspace_path: str = "/workspace"
 
 
 @dataclass(frozen=True)
@@ -83,7 +85,8 @@ class SessionLaneConfig:
 class OrchestratorConfig:
     """Orchestrator Super-Graph configuration (Task 2)."""
 
-    max_rejections: int = 3
+    max_retries_per_task: int = 3
+    max_plan_retries: int = 2
     max_subtasks: int = 10
     max_parallel_workers: int = 3
     planner_model: str = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")

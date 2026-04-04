@@ -50,7 +50,7 @@ class _MockProvider:
 
 
 class _FakeRuntime:
-    def run(self, *, image, command, mem_limit, network_disabled, timeout):
+    def run(self, *, image, command, mem_limit, network_disabled, timeout, volumes=None):
         return SandboxResult(exit_code=0, stdout="ok", stderr="", timed_out=False)
 
 
@@ -402,12 +402,13 @@ class TestOrchestratorTelemetryIntegration:
         review_reject = self._review_json(approved=False, score=0.2, critique="Logic error")
         review_approve = self._review_json(approved=True, score=0.85)
 
-        provider = _MockProvider([plan_resp, review_reject, review_approve])
+        plan_review_ok = json.dumps({"approved": True, "critique": "", "score": 0.9})
+        provider = _MockProvider([plan_resp, plan_review_ok, review_reject, review_approve])
         gate = BudgetGate(provider=provider, budget_config=BudgetConfig(max_total_tokens=500_000))
         sandbox = SandboxExecutor(runtime=_FakeRuntime())
         orch = OrchestratorGraph(
             gate=gate, sandbox=sandbox, telemetry=mgr,
-            orchestrator_config=OrchestratorConfig(max_rejections=5),
+            orchestrator_config=OrchestratorConfig(max_retries_per_task=5),
         )
 
         with patch.object(orch, "_execute_subtask", return_value=self._worker_result()):

@@ -472,12 +472,14 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     <div class="sec-eyebrow fade-up">Phase 3 Deep Dive</div>
     <div class="sec-title fade-up" data-delay="1">Orchestrator Super-Graph</div>
     <p class="sec-desc fade-up" data-delay="2">
-      거대 목표가 Planner에서 DAG로 분해되고, Worker가 병렬 실행하며,
-      Reviewer가 품질을 검수하는 전체 과정을 단계별로 확인하세요.
+      거대 목표가 Planner에서 DAG로 분해되고, Plan Reviewer가 계획을 사전 검증한 뒤,
+      Worker가 병렬 실행하며, Reviewer가 품질을 검수하는 전체 과정을 단계별로 확인하세요.
     </p>
     <div class="orch-flow fade-up" data-delay="3" id="orch-flow">
       <div class="orch-row">
         <div class="o-node" id="on-plan"><div class="o-icon">&#128203;</div><div class="o-name">PLANNER</div><div class="o-desc">목표 → DAG 분해</div></div>
+        <div class="o-arrow" id="oa-pr"><div class="pkt" id="op-pr"></div></div>
+        <div class="o-node" id="on-prev"><div class="o-icon">&#128221;</div><div class="o-name">PLAN REVIEW</div><div class="o-desc">계획 사전 검증</div></div>
         <div class="o-arrow" id="oa-1"><div class="pkt" id="op-1"></div></div>
         <div class="o-node" id="on-disp"><div class="o-icon">&#128640;</div><div class="o-name">DISPATCHER</div><div class="o-desc">ThreadPool 병렬</div></div>
         <div class="o-arrow" id="oa-2"><div class="pkt" id="op-2"></div></div>
@@ -492,6 +494,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
         <div class="o-worker" id="ow-3"><div class="wl">Worker #3</div><div class="wn">coder → parser → linter → sandbox</div></div>
       </div>
       <div style="text-align:center;margin-top:1rem">
+        <div class="o-rej-label" id="o-prej" style="opacity:0;transition:opacity .4s">&#8634; PLAN REJECTED — critique와 함께 Planner로 재계획</div>
         <div class="o-rej-label" id="o-rej" style="opacity:0;transition:opacity .4s">&#8634; REJECTED — critique 피드백과 함께 Dispatcher로 재순환</div>
       </div>
       <div style="text-align:center;margin-top:.6rem">
@@ -508,7 +511,8 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
 
     <div class="p3-grid fade-up">
       <div class="p3-card"><div class="tag">Planner</div><h4>DAG 분해 전략</h4><p>LLM에게 목표를 전달하면 depends_on으로 연결된 SubTask DAG를 JSON으로 반환. 최대 10개 서브태스크 제한.</p></div>
-      <div class="p3-card"><div class="tag">Quality Gate</div><h4>Reviewer 검수 루프</h4><p>Reviewer LLM이 approve/reject 판정. 거부 시 critique가 워커에 주입. 누적 3회 초과 시 실패.</p></div>
+      <div class="p3-card"><div class="tag">Plan Review</div><h4>계획 사전 검증</h4><p>Planner 산출물을 실행 전에 LLM이 구조 검토. 비구체적 목표, 잘못된 의존성, 누락 단계 감지 시 critique와 함께 재계획. 최대 2회.</p></div>
+      <div class="p3-card"><div class="tag">Quality Gate</div><h4>Worker 산출물 검수</h4><p>Reviewer LLM이 워커 코드와 실행 결과를 평가. 거부 시 critique가 워커에 주입. 누적 3회 초과 시 실패.</p></div>
       <div class="p3-card"><div class="tag">Telemetry</div><h4>Agent-RRM 궤적 기록</h4><p>think(추론), critique(비평), score(0.0~1.0)를 JSONL에 누적하여 사후 분석 지원.</p></div>
       <div class="p3-card"><div class="tag">Session Lane</div><h4>Per-Key 자원 직렬화</h4><p>SyncSessionLane이 동일 키 동시 접근 직렬화. 메타 Lock + 개별 Lock 2계층.</p></div>
       <div class="p3-card"><div class="tag">Jitter Backoff</div><h4>Decorrelated Jitter</h4><p>AWS 권장 알고리즘으로 Thundering Herd를 Jitter로 분산.</p></div>
@@ -551,8 +555,8 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
         <div class="tl-body"><div class="tl-body-inner"><p>LLM API 통신부 최상단에 재무적 방어선 구축. 세션별 토큰/비용 이중 추적, 한도 초과 시 회로 차단기가 영구적으로 트립되어 모든 후속 API 호출을 물리적으로 차단합니다.</p></div></div>
       </div>
       <div class="tl-item" data-code='container = self._client.containers.<span class="fn">run</span>(\n    image=image,\n    command=[<span class="str">"python"</span>, <span class="str">"-c"</span>, code],\n    mem_limit=<span class="str">f"{mem_limit}m"</span>,\n    network_disabled=<span class="kw">True</span>,\n    detach=<span class="kw">True</span>,\n)' data-file="sandbox/executor.py">
-        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T2</span><span class="tl-name">Deterministic Sandbox</span><span class="tl-count">21 ✓</span><span class="tl-chevron">▶</span></div>
-        <div class="tl-body"><div class="tl-body-inner"><p>에이전트 생성 코드를 호스트 OS에서 절대 실행하지 않는 격리 환경. 일회성 Docker 컨테이너에서 메모리 제한, 네트워크 차단, 타임아웃을 강제하고 실행 후 즉시 파괴합니다.</p></div></div>
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T2</span><span class="tl-name">Deterministic Sandbox</span><span class="tl-count">27 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>에이전트 생성 코드를 호스트 OS에서 절대 실행하지 않는 격리 환경. 일회성 Docker 컨테이너에서 메모리 제한, 네트워크 차단, 타임아웃을 강제하고 실행 후 즉시 파괴합니다. Workspace Volume Mount로 지정된 호스트 디렉토리를 컨테이너에 바인드하여 생성 파일을 영속화합니다.</p></div></div>
       </div>
       <div class="tl-item" data-code='graph.<span class="fn">set_entry_point</span>(<span class="str">"coder"</span>)\ngraph.<span class="fn">add_edge</span>(<span class="str">"coder"</span>, <span class="str">"parser"</span>)\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"parser"</span>, route_after_parse)\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"linter"</span>, route_after_lint)\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"sandbox"</span>, route_after_sandbox)' data-file="graph/graph.py">
         <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T3</span><span class="tl-name">Self-Healing Loop</span><span class="tl-count">17 ✓</span><span class="tl-chevron">▶</span></div>
@@ -586,9 +590,9 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
         <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T8</span><span class="tl-name">SessionLane & Jitter Backoff</span><span class="tl-count">32 ✓</span><span class="tl-chevron">▶</span></div>
         <div class="tl-body"><div class="tl-body-inner"><p>다중 워커의 자원 경합을 막는 Per-key 세마포어와 Thundering Herd 현상을 방지하는 Decorrelated Jitter 지수적 백오프. ThreadPoolExecutor와 asyncio 환경 모두 지원합니다.</p></div></div>
       </div>
-      <div class="tl-item" data-code='graph.<span class="fn">add_node</span>(<span class="str">"planner"</span>, self._planner_node)\ngraph.<span class="fn">add_node</span>(<span class="str">"dispatcher"</span>, self._dispatcher_node)\ngraph.<span class="fn">add_node</span>(<span class="str">"reviewer"</span>, self._reviewer_node)\ngraph.<span class="fn">add_node</span>(<span class="str">"finalizer"</span>, self._finalizer_node)\n<span class="cm"># reviewer → finalizer | dispatcher (rejected) | failed</span>\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"reviewer"</span>, route_after_review)' data-file="graph/orchestrator.py">
+      <div class="tl-item" data-code='graph.<span class="fn">add_node</span>(<span class="str">"planner"</span>, self._planner_node)\ngraph.<span class="fn">add_node</span>(<span class="str">"plan_reviewer"</span>, self._plan_reviewer_node)\ngraph.<span class="fn">add_node</span>(<span class="str">"dispatcher"</span>, self._dispatcher_node)\ngraph.<span class="fn">add_node</span>(<span class="str">"reviewer"</span>, self._reviewer_node)\ngraph.<span class="fn">add_node</span>(<span class="str">"finalizer"</span>, self._finalizer_node)\n<span class="cm"># plan_reviewer → dispatcher | planner (rejected) | failed</span>\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"plan_reviewer"</span>, route_after_plan_review)' data-file="graph/orchestrator.py">
         <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T9</span><span class="tl-name">Orchestrator Super-Graph</span><span class="tl-count">39 ✓</span><span class="tl-chevron">▶</span></div>
-        <div class="tl-body"><div class="tl-body-inner"><p>거대 목표를 DAG로 분해하는 Planner, SelfHealingGraph 워커를 병렬 실행하는 Dispatcher, 산출물을 검수하는 Reviewer(Quality Gate), 결과를 통합하는 Finalizer로 구성된 LangGraph Super-Graph.</p></div></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>거대 목표를 DAG로 분해하는 Planner, SelfHealingGraph 워커를 병렬 실행하는 Dispatcher, 산출물을 검수하는 Reviewer(Quality Gate), 결과를 통합하는 Finalizer로 구성된 LangGraph Super-Graph. 의존 Task 결과를 후속 워커에 자동 주입하고, Reviewer가 Workspace 파일 내용을 검증합니다.</p></div></div>
       </div>
       <div class="tl-item" data-code='<span class="kw">def</span> <span class="fn">record</span>(self, trajectory: <span class="fn">TrajectoryRecord</span>):\n    line = json.<span class="fn">dumps</span>(<span class="fn">asdict</span>(trajectory))\n    <span class="kw">with</span> self._lock:\n        <span class="kw">with</span> <span class="fn">open</span>(self._log_path, <span class="str">"a"</span>) <span class="kw">as</span> f:\n            f.<span class="fn">write</span>(line + <span class="str">"\\n"</span>)' data-file="telemetry/manager.py">
         <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T10</span><span class="tl-name">Agent-RRM Telemetry Pipeline</span><span class="tl-count">32 ✓</span><span class="tl-chevron">▶</span></div>
@@ -688,7 +692,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     <div class="test-phase-label fade-up">Phase 1</div>
     <div class="test-rings fade-up">
       <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="9">0</div><div class="ring-label">Budget Gate</div></div>
-      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="12">0</div><div class="ring-label">Sandbox (Unit)</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="18">0</div><div class="ring-label">Sandbox (Unit)</div></div>
       <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="10">0</div><div class="ring-label">Sandbox (Docker)</div></div>
       <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="17">0</div><div class="ring-label">Self-Healing</div></div>
     </div>
@@ -715,7 +719,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     </div>
 
     <div class="test-total fade-up">
-      <div class="big"><em>394</em> / 394</div>
+      <div class="big"><em>405</em> / 405</div>
       <div class="sub">All Tests Passing</div>
     </div>
   </div>
@@ -770,7 +774,7 @@ document.querySelectorAll('.test-rings').forEach(function(el){rObs.observe(el)})
     {t:'kappa --version',c:'cmd'},{t:'v0.5.0 (Phase 5: Production Launch)',c:'out'},
     {t:'',c:''},{t:'kappa status',c:'cmd'},
     {t:'┌──────────────────────────────────────────┐',c:'out'},
-    {t:'│  Modules: 15 loaded   Tests: 394 passed  │',c:'out'},
+    {t:'│  Modules: 15 loaded   Tests: 405 passed  │',c:'out'},
     {t:'│  MCP: 3 tools   RAG: ready   HITL: on    │',c:'out'},
     {t:'└──────────────────────────────────────────┘',c:'out'},
     {t:'',c:''},{t:'kappa run "Build a REST API"',c:'cmd'},
@@ -846,6 +850,7 @@ function toggleTl(hdr){
 (function(){
   var STEPS=[
     {n:'plan',s:'PLANNER: 목표를 DAG로 분해 중...'},
+    {n:'prev',s:'PLAN REVIEWER: 계획 구조 검증 중...'},
     {n:'disp',s:'DISPATCHER: 워커에게 병렬 전달...'},
     {n:'work',s:'WORKERS: SelfHealingGraph 실행 중...'},
     {n:'rev',s:'REVIEWER: Quality Gate 검수 중...'},
@@ -868,6 +873,7 @@ function toggleTl(hdr){
     document.querySelectorAll('.o-arrow,.o-arrow-d').forEach(function(a){a.classList.remove('active')});
     document.querySelectorAll('.o-worker').forEach(function(w){w.classList.remove('active')});
     document.querySelectorAll('.pkt').forEach(function(p){p.style.animation='none';p.style.opacity='0'});
+    document.getElementById('o-prej').style.opacity='0';
     document.getElementById('o-rej').style.opacity='0';
     document.getElementById('o-tel').style.opacity='0';
     var st=document.getElementById('o-st');st.textContent='READY';st.className='';
@@ -886,6 +892,7 @@ function toggleTl(hdr){
     var s=STEPS[cur];setSt(s.s,cur===STEPS.length-1?'done':'running');updProg();
     switch(s.n){
       case'plan':aNode('on-plan');break;
+      case'prev':aArrow('oa-pr');fire('op-pr');setTimeout(function(){aNode('on-prev')},500);break;
       case'disp':case'disp2':aArrow('oa-1');fire('op-1');setTimeout(function(){aNode('on-disp')},500);break;
       case'work':case'work2':aArrow('oa-d');fire('op-d');setTimeout(aWorkers,300);break;
       case'rev':case'rev2':dWorkers();aArrow('oa-2');fire('op-2');setTimeout(function(){aNode('on-rev')},500);break;

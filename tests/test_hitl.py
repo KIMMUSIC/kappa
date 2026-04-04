@@ -287,6 +287,8 @@ class TestOrchestratorHITLIntegration:
                     {"id": "task-002", "goal": "delete database", "depends_on": []},
                 ]
             }),
+            # Plan reviewer: approve
+            json.dumps({"approved": True, "critique": "", "score": 0.9}),
             # Worker 1: coder output (task-001)
             '<think>ok</think>\n<action>\nprint("hello")\n</action>',
             # Worker 2: coder output (task-002) — might not run if denied
@@ -311,7 +313,7 @@ class TestOrchestratorHITLIntegration:
         gate = BudgetGate(provider=ScriptedProvider(), budget_config=budget_config)
 
         class FakeRuntime:
-            def run(self, *, image, command, mem_limit, network_disabled, timeout):
+            def run(self, *, image, command, mem_limit, network_disabled, timeout, volumes=None):
                 from kappa.sandbox.executor import SandboxResult
                 code = command[-1] if command else ""
                 import subprocess
@@ -334,7 +336,7 @@ class TestOrchestratorHITLIntegration:
             gate=gate,
             sandbox=sandbox,
             config=AgentConfig(max_self_heal_retries=1),
-            orchestrator_config=OrchestratorConfig(max_rejections=3),
+            orchestrator_config=OrchestratorConfig(max_retries_per_task=3),
             approval_callback=callback,
         )
 

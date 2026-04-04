@@ -55,6 +55,7 @@ class FakeRuntime:
         mem_limit: str,
         network_disabled: bool,
         timeout: int,
+        volumes: dict | None = None,
     ) -> SandboxResult:
         self.calls.append(
             {
@@ -63,6 +64,7 @@ class FakeRuntime:
                 "mem_limit": mem_limit,
                 "network_disabled": network_disabled,
                 "timeout": timeout,
+                "volumes": volumes,
             }
         )
         if self.raise_error:
@@ -231,6 +233,65 @@ class TestSandboxExecutor:
         assert executor.config.memory_limit_mb == 256
         assert executor.config.network_enabled is False
         assert executor.config.docker_image == "python:3.11-slim"
+
+    def test_workspace_dir_creates_volume_mount(self, tmp_path):
+        """With workspace_dir set, volumes dict is passed to runtime."""
+        ws = str(tmp_path / "ws")
+        config = SandboxConfig(workspace_dir=ws)
+        runtime = FakeRuntime(exit_code=0, stdout="", stderr="")
+        executor = SandboxExecutor(runtime=runtime, config=config)
+
+        executor.execute("print('hi')")
+
+        call = runtime.calls[0]
+        assert call["volumes"] is not None
+        # Resolved absolute path should be a key
+        resolved = str(tmp_path / "ws")
+        assert any(resolved in k for k in call["volumes"])
+        mount = list(call["volumes"].values())[0]
+        assert mount["bind"] == "/workspace"
+        assert mount["mode"] == "rw"
+
+    def test_no_workspace_dir_no_volumes(self):
+        """Default config (no workspace_dir) produces volumes=None."""
+        runtime = FakeRuntime(exit_code=0, stdout="", stderr="")
+        executor = SandboxExecutor(runtime=runtime)
+
+        executor.execute("pass")
+
+        assert runtime.calls[0]["volumes"] is None
+
+    def test_workspace_dir_creates_directory(self, tmp_path):
+        """workspace_dir is created if it doesn't exist."""
+        ws = tmp_path / "new_workspace"
+        config = SandboxConfig(workspace_dir=str(ws))
+        runtime = FakeRuntime(exit_code=0, stdout="", stderr="")
+        executor = SandboxExecutor(runtime=runtime, config=config)
+
+        executor.execute("pass")
+
+        assert ws.exists()
+
+    def test_container_workspace_path_customizable(self, tmp_path):
+        """Custom container_workspace_path appears in volumes."""
+        ws = str(tmp_path / "ws")
+        config = SandboxConfig(workspace_dir=ws, container_workspace_path="/data")
+        runtime = FakeRuntime(exit_code=0, stdout="", stderr="")
+        executor = SandboxExecutor(runtime=runtime, config=config)
+
+        executor.execute("pass")
+
+        mount = list(runtime.calls[0]["volumes"].values())[0]
+        assert mount["bind"] == "/data"
+
+    def test_filesystem_root_mount_rejected(self):
+        """Mounting / as workspace raises SandboxExecutionError."""
+        config = SandboxConfig(workspace_dir="/")
+        runtime = FakeRuntime(exit_code=0, stdout="", stderr="")
+        executor = SandboxExecutor(runtime=runtime, config=config)
+
+        with pytest.raises(SandboxExecutionError, match="filesystem root"):
+            executor.execute("pass")
 
 
 # ── Protocol conformance ────────────────────────────────────────

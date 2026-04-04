@@ -239,6 +239,9 @@ class SelfHealingGraph:
     # ── Public API ──────────────────────────────────────────────
 
     def _initial_state(self, goal: str) -> AgentState:
+        workspace = ""
+        if self._sandbox.config.workspace_dir:
+            workspace = self._sandbox.config.container_workspace_path
         return {
             "goal": goal,
             "llm_output": "",
@@ -250,6 +253,7 @@ class SelfHealingGraph:
             "status": "running",
             "tool_calls": [],
             "memory_context": "",
+            "workspace_path": workspace,
         }
 
     def run(self, goal: str, memory_context: str = "") -> AgentState:

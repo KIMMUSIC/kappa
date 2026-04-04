@@ -11,9 +11,9 @@ Sub-Graph inside a higher-level Super-Graph.
 
 Flow::
 
-    planner → dispatcher → [Workers…] → reviewer ─┬→ finalizer → END
-                   ↑                               │
-                   └──── rejected (critique) ──────┘
+    planner → plan_reviewer ─┬→ dispatcher → [Workers…] → reviewer ─┬→ finalizer → END
+       ↑                     │       ↑                               │
+       └── plan rejected ────┘       └──── rejected (critique) ──────┘
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ import json
 import re
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import Any, Callable, TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -41,6 +42,17 @@ PLANNER_PROMPT = """\
 You are a task decomposition planner.  Break the given goal into \
 concrete, actionable subtasks that a code-generation agent can execute.
 
+Each subtask will be executed by a Python code-generation agent that runs \
+Python code in a sandbox. Therefore:
+- Frame every goal as a concrete Python programming task.
+- If the task involves creating files (HTML, CSS, JS, config, etc.), the goal \
+MUST say "Write Python code that creates <filename> with ..." — not just \
+"Create the HTML structure".
+- The agent can only produce Python code, so each goal must be achievable \
+by writing and executing a Python script.
+- The sandbox has a /workspace directory mounted from the host. \
+All file output MUST go to /workspace/ so it persists after execution.
+
 Rules:
 - Each subtask gets a unique id: "task-001", "task-002", etc.
 - Use depends_on to express ordering (list of prerequisite task IDs).
@@ -54,8 +66,8 @@ Output ONLY valid JSON (no markdown, no commentary):
 Goal: {goal}"""
 
 REVIEWER_PROMPT = """\
-You are a strict quality reviewer.  Evaluate whether the worker \
-output correctly and completely fulfils the subtask goal.
+You are a pragmatic quality reviewer.  Evaluate whether the worker \
+output fulfils the subtask goal.
 
 Subtask goal: {goal}
 Worker status: {status}
@@ -63,12 +75,39 @@ Worker output:
 {output}
 
 Rules:
-- Approve ONLY if the output is correct, complete, and error-free.
-- Reject with a specific, actionable critique if there are issues.
+- If worker status is "success" and the generated code reasonably \
+addresses the goal, APPROVE it.
+- Only REJECT for functional problems: wrong logic, missing core \
+requirements, or runtime errors.
+- Do NOT reject for style, missing docstrings, or minor improvements.
+- If workspace file contents are included, verify they match the subtask \
+goal — REJECT if a file was overwritten with unrelated content.
 - Score from 0.0 (terrible) to 1.0 (perfect).
 
 Output ONLY valid JSON (no markdown, no commentary):
 {{"approved": true, "think": "reasoning", "critique": "", "score": 0.95}}"""
+
+PLAN_REVIEWER_PROMPT = """\
+You are a plan reviewer.  Evaluate whether the proposed subtask \
+decomposition is well-structured and achievable.
+
+Original goal: {goal}
+
+Proposed plan:
+{plan}
+
+Rules:
+- Each subtask must be a concrete Python programming task achievable \
+by a code-generation agent running in a sandboxed environment.
+- Dependencies (depends_on) must be logically correct — no circular \
+dependencies, no references to non-existent task IDs.
+- The subtasks should collectively cover the full scope of the goal.
+- Approve if the plan is reasonable and actionable.
+- Reject ONLY for structural issues: vague goals, missing steps, \
+wrong dependencies, or tasks that cannot be executed as Python code.
+
+Output ONLY valid JSON (no markdown, no commentary):
+{{"approved": true, "critique": "", "score": 0.9}}"""
 
 
 # ── State schemas ───────────────────────────────────────────────────
@@ -93,10 +132,12 @@ class OrchestratorState(TypedDict):
     plan: list[SubTask]
     completed: list[str]
     rejected_count: int
-    max_rejections: int
-    global_status: str  # planning | dispatching | reviewing | done | failed
+    max_retries_per_task: int
+    global_status: str  # planning | plan_review | dispatching | reviewing | done | failed
     final_output: str
     telemetry_records: list[dict]
+    plan_critique: str
+    plan_attempts: int
 
 
 # ── Orchestrator ────────────────────────────────────────────────────
@@ -202,6 +243,38 @@ class OrchestratorGraph:
                 return dict(worker.run(goal))
         return dict(worker.run(goal))
 
+    # ── Dependency context ──────────────────────────────────────────
+
+    @staticmethod
+    def _enrich_with_deps(task: SubTask, plan: list[SubTask]) -> SubTask:
+        """Return a copy of *task* whose goal includes predecessor outputs."""
+        dep_parts: list[str] = []
+        for dep_id in task["depends_on"]:
+            dep_task = next(
+                (t for t in plan if t["id"] == dep_id and t["status"] == "completed"),
+                None,
+            )
+            if dep_task and dep_task.get("result"):
+                sandbox = (dep_task["result"].get("sandbox_result") or {})
+                stdout = sandbox.get("stdout", "").strip()
+                parsed_code = dep_task["result"].get("parsed_code", "").strip()
+                if stdout or parsed_code:
+                    part = f"[{dep_id}] {dep_task['goal']}"
+                    if parsed_code:
+                        part += f"\nCode:\n{parsed_code[:500]}"
+                    if stdout:
+                        part += f"\nOutput:\n{stdout[:500]}"
+                    dep_parts.append(part)
+        if not dep_parts:
+            return task
+        enriched: SubTask = {**task}
+        enriched["goal"] = (
+            task["goal"]
+            + "\n\n[Context from completed prerequisite tasks]\n"
+            + "\n\n".join(dep_parts)
+        )
+        return enriched
+
     # ── Node implementations ────────────────────────────────────────
 
     def _planner_node(self, state: OrchestratorState) -> dict:
@@ -210,6 +283,15 @@ class OrchestratorGraph:
             goal=state["main_goal"],
             max_subtasks=self._orch_config.max_subtasks,
         )
+
+        plan_critique = state.get("plan_critique", "")
+        if plan_critique:
+            prompt += (
+                f"\n\nYour previous plan was rejected:\n"
+                f"{plan_critique}\n"
+                f"Revise the plan to address the issues."
+            )
+
         raw = self._llm_call(prompt, model=self._orch_config.planner_model)
         parsed = self._parse_json(raw)
 
@@ -231,7 +313,33 @@ class OrchestratorGraph:
                 }
             )
 
-        return {"plan": plan, "global_status": "dispatching"}
+        return {
+            "plan": plan,
+            "global_status": "plan_review",
+            "plan_attempts": state.get("plan_attempts", 0) + 1,
+        }
+
+    def _plan_reviewer_node(self, state: OrchestratorState) -> dict:
+        """Validate the planner's decomposition before dispatching."""
+        plan_text = "\n".join(
+            f"  {t['id']}: {t['goal']} (depends_on={t['depends_on']})"
+            for t in state["plan"]
+        )
+        prompt = PLAN_REVIEWER_PROMPT.format(
+            goal=state["main_goal"],
+            plan=plan_text,
+        )
+        raw = self._llm_call(prompt, model=self._orch_config.reviewer_model)
+        review = self._parse_json(raw)
+
+        if review is None:
+            review = {"approved": False, "critique": "Plan review could not be parsed.", "score": 0.0}
+
+        if review.get("approved", False):
+            return {"global_status": "dispatching", "plan_critique": ""}
+
+        critique = review.get("critique", "Plan rejected without specific feedback.")
+        return {"global_status": "plan_rejected", "plan_critique": critique}
 
     def _dispatcher_node(self, state: OrchestratorState) -> dict:
         """Find ready subtasks and execute them via workers."""
@@ -257,7 +365,7 @@ class OrchestratorGraph:
                 if decision == "deny":
                     denied_plan_updates[task["id"]] = {
                         **task,
-                        "status": "rejected",
+                        "status": "failed",
                         "critique": "Operator denied execution",
                     }
                 else:
@@ -280,10 +388,13 @@ class OrchestratorGraph:
         results: dict[str, dict] = {}
         max_w = min(self._orch_config.max_parallel_workers, len(ready))
 
+        # Enrich each task with outputs from completed dependencies
+        enriched_ready = [self._enrich_with_deps(t, plan) for t in ready]
+
         with ThreadPoolExecutor(max_workers=max_w) as pool:
             futures = {
                 pool.submit(self._execute_subtask, task): task["id"]
-                for task in ready
+                for task in enriched_ready
             }
             for future in as_completed(futures):
                 task_id = futures[future]
@@ -331,14 +442,41 @@ class OrchestratorGraph:
             result = task.get("result") or {}
             worker_status = result.get("status", "unknown")
             sandbox = result.get("sandbox_result") or {}
-            output_text = sandbox.get("stdout", "") or result.get(
-                "parsed_code", ""
-            )
+            parsed_code = result.get("parsed_code", "")
+            stdout = sandbox.get("stdout", "")
+            stderr = sandbox.get("stderr", "")
+
+            output_parts: list[str] = []
+            if parsed_code:
+                output_parts.append(f"[Generated Code]\n{parsed_code}")
+            if stdout:
+                output_parts.append(f"[Execution stdout]\n{stdout}")
+            if stderr:
+                output_parts.append(f"[Execution stderr]\n{stderr}")
+            output_text = "\n\n".join(output_parts) if output_parts else "(no output)"
+
+            # Include workspace file contents for verification
+            if self._sandbox.config.workspace_dir:
+                ws_path = Path(self._sandbox.config.workspace_dir).resolve()
+                if ws_path.exists():
+                    ws_parts: list[str] = []
+                    for f in sorted(ws_path.iterdir()):
+                        if f.is_file():
+                            try:
+                                content = f.read_text(errors="replace")[:2000]
+                                ws_parts.append(f"--- {f.name} ---\n{content}")
+                            except Exception:
+                                ws_parts.append(f"--- {f.name} --- (unreadable)")
+                    if ws_parts:
+                        output_text += (
+                            "\n\n[Workspace files on disk]\n"
+                            + "\n\n".join(ws_parts)
+                        )
 
             prompt = REVIEWER_PROMPT.format(
                 goal=task["goal"],
                 status=worker_status,
-                output=output_text[:2000],
+                output=output_text,
             )
             raw = self._llm_call(prompt, model=self._orch_config.reviewer_model)
             review = self._parse_json(raw)
@@ -369,16 +507,21 @@ class OrchestratorGraph:
                 )
                 completed.append(task["id"])
             else:
+                new_attempts = task["attempts"] + 1
+                if new_attempts >= state["max_retries_per_task"]:
+                    task_status = "failed"
+                else:
+                    task_status = "rejected"
                 updated_plan.append(
                     {
                         "id": task["id"],
                         "goal": task["goal"],
                         "depends_on": task["depends_on"],
-                        "status": "rejected",
+                        "status": task_status,
                         "result": task["result"],
                         "critique": critique
                         or "Review failed: no specific feedback.",
-                        "attempts": task["attempts"] + 1,
+                        "attempts": new_attempts,
                     }
                 )
                 rejected_count += 1
@@ -433,7 +576,14 @@ class OrchestratorGraph:
     def _route_after_plan(self, state: OrchestratorState) -> str:
         if state["global_status"] == "failed" or not state["plan"]:
             return "failed"
-        return "dispatcher"
+        return "plan_reviewer"
+
+    def _route_after_plan_review(self, state: OrchestratorState) -> str:
+        if state["global_status"] == "dispatching":
+            return "dispatcher"
+        if state.get("plan_attempts", 0) >= self._orch_config.max_plan_retries:
+            return "failed"
+        return "planner"
 
     def _route_after_dispatch(self, state: OrchestratorState) -> str:
         if state["global_status"] == "failed":
@@ -441,7 +591,7 @@ class OrchestratorGraph:
         return "reviewer"
 
     def _route_after_review(self, state: OrchestratorState) -> str:
-        if state["rejected_count"] >= state["max_rejections"]:
+        if any(t["status"] == "failed" for t in state["plan"]):
             return "failed"
         if all(t["status"] == "completed" for t in state["plan"]):
             return "finalizer"
@@ -453,6 +603,7 @@ class OrchestratorGraph:
         graph = StateGraph(OrchestratorState)
 
         graph.add_node("planner", self._planner_node)
+        graph.add_node("plan_reviewer", self._plan_reviewer_node)
         graph.add_node("dispatcher", self._dispatcher_node)
         graph.add_node("reviewer", self._reviewer_node)
         graph.add_node("finalizer", self._finalizer_node)
@@ -460,6 +611,7 @@ class OrchestratorGraph:
 
         graph.set_entry_point("planner")
         graph.add_conditional_edges("planner", self._route_after_plan)
+        graph.add_conditional_edges("plan_reviewer", self._route_after_plan_review)
         graph.add_conditional_edges("dispatcher", self._route_after_dispatch)
         graph.add_conditional_edges("reviewer", self._route_after_review)
         graph.add_edge("finalizer", END)
@@ -475,10 +627,12 @@ class OrchestratorGraph:
             "plan": [],
             "completed": [],
             "rejected_count": 0,
-            "max_rejections": self._orch_config.max_rejections,
+            "max_retries_per_task": self._orch_config.max_retries_per_task,
             "global_status": "planning",
             "final_output": "",
             "telemetry_records": [],
+            "plan_critique": "",
+            "plan_attempts": 0,
         }
 
     def run(self, goal: str) -> OrchestratorState:

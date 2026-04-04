@@ -53,7 +53,7 @@ class ScriptedRuntime:
         self._index = 0
         self.calls: list[str] = []
 
-    def run(self, *, image, command, mem_limit, network_disabled, timeout) -> SandboxResult:
+    def run(self, *, image, command, mem_limit, network_disabled, timeout, volumes=None) -> SandboxResult:
         self.calls.append(command[-1] if command else "")
         result = self._results[min(self._index, len(self._results) - 1)]
         self._index += 1
