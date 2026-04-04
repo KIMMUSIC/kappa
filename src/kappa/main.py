@@ -76,16 +76,16 @@ def build_orchestrator(args: argparse.Namespace):
         MCPConfig,
         OrchestratorConfig,
         RAGConfig,
-        SandboxConfig,
+        ExecutionConfig,
         SemanticConfig,
         SessionLaneConfig,
         TelemetryConfig,
     )
     from kappa.defense.semantic import SemanticLoopDetector
-    from kappa.exceptions import SandboxExecutionError
+    from kappa.exceptions import ExecutionError
     from kappa.graph.orchestrator import OrchestratorGraph
     from kappa.infra.session_lane import SyncSessionLane
-    from kappa.sandbox.executor import DockerRuntime, SandboxExecutor
+    from kappa.sandbox.executor import HostExecutor, always_approve, auto_approve
     from kappa.telemetry.manager import TelemetryManager
     from kappa.tools.registry import ToolRegistry
 
@@ -100,24 +100,15 @@ def build_orchestrator(args: argparse.Namespace):
         )
         sys.exit(1)
 
-    # ── 2. Docker Sandbox ──────────────────────────────────────────
-    console.print("[dim]Connecting to Docker daemon...[/]")
-    try:
-        runtime = DockerRuntime()
-    except SandboxExecutionError as e:
-        console.print(f"[bold red]Docker Error:[/] {e}")
-        console.print("[yellow]Start Docker Desktop and retry.[/]")
-        sys.exit(1)
-
-    # ── 3. Configs (env-driven with CLI overrides) ─────────────────
+    # ── 2. Configs (env-driven with CLI overrides) ─────────────────
     #    BudgetConfig reads defaults from env vars; CLI flags override.
     env_budget = BudgetConfig()
     budget_config = BudgetConfig(
         max_total_tokens=args.max_tokens or env_budget.max_total_tokens,
         max_cost_usd=args.max_cost or env_budget.max_cost_usd,
     )
-    sandbox_config = SandboxConfig()
-    agent_config = AgentConfig(budget=budget_config, sandbox=sandbox_config)
+    exec_config = ExecutionConfig()
+    agent_config = AgentConfig(budget=budget_config, execution=exec_config)
     orch_config = OrchestratorConfig()
     rag_config = RAGConfig()
     mcp_config = MCPConfig()
@@ -127,9 +118,10 @@ def build_orchestrator(args: argparse.Namespace):
         enabled=not args.no_telemetry,
     )
 
-    # ── 4. Core Infrastructure ─────────────────────────────────────
+    # ── 3. Core Infrastructure ─────────────────────────────────────
     gate = BudgetGate(provider=provider, budget_config=budget_config)
-    sandbox = SandboxExecutor(runtime=runtime, config=sandbox_config)
+    approval_fn = always_approve if exec_config.auto_approve else auto_approve
+    executor = HostExecutor(config=exec_config, approval_fn=approval_fn)
 
     # ── 5. Tool Registry ───────────────────────────────────────────
     registry = ToolRegistry(tracker=gate.tracker)
@@ -164,7 +156,7 @@ def build_orchestrator(args: argparse.Namespace):
     # ── 11. Orchestrator Super-Graph ───────────────────────────────
     orchestrator = OrchestratorGraph(
         gate=gate,
-        sandbox=sandbox,
+        sandbox=executor,
         config=agent_config,
         orchestrator_config=orch_config,
         registry=registry,
@@ -183,7 +175,7 @@ def build_orchestrator(args: argparse.Namespace):
 def run_single(args: argparse.Namespace) -> None:
     """Execute a single goal from --goal and exit."""
     from kappa.cli import run_dashboard
-    from kappa.exceptions import BudgetExceededException, SandboxExecutionError
+    from kappa.exceptions import BudgetExceededException, ExecutionError
 
     orchestrator, tracker, budget_config = build_orchestrator(args)
 
@@ -217,8 +209,8 @@ def run_single(args: argparse.Namespace) -> None:
     except BudgetExceededException as e:
         console.print(f"\n[bold red]BUDGET EXCEEDED:[/] {e}")
         sys.exit(1)
-    except SandboxExecutionError as e:
-        console.print(f"\n[bold red]SANDBOX ERROR:[/] {e}")
+    except ExecutionError as e:
+        console.print(f"\n[bold red]EXECUTION ERROR:[/] {e}")
         sys.exit(1)
     except KeyboardInterrupt:
         console.print("\n[dim]Interrupted.[/]")
@@ -230,7 +222,7 @@ def run_repl(args: argparse.Namespace) -> None:
     from rich.prompt import Prompt
 
     from kappa.cli import run_dashboard
-    from kappa.exceptions import BudgetExceededException, SandboxExecutionError
+    from kappa.exceptions import BudgetExceededException, ExecutionError
 
     orchestrator, tracker, budget_config = build_orchestrator(args)
 
@@ -281,8 +273,8 @@ def run_repl(args: argparse.Namespace) -> None:
         except BudgetExceededException as e:
             console.print(f"\n[bold red]BUDGET EXCEEDED:[/] {e}\n")
             break
-        except SandboxExecutionError as e:
-            console.print(f"\n[bold red]SANDBOX ERROR:[/] {e}\n")
+        except ExecutionError as e:
+            console.print(f"\n[bold red]EXECUTION ERROR:[/] {e}\n")
         except KeyboardInterrupt:
             console.print("\n[dim]Interrupted.[/]\n")
 

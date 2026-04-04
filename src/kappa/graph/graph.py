@@ -1,6 +1,6 @@
 """LangGraph-based single self-healing agent loop (V2).
 
-Assembles the coder → parser → linter → sandbox pipeline with
+Assembles the coder → parser → linter → executor pipeline with
 conditional edges that loop back on failure (up to a hard retry limit).
 
 V2 additions:
@@ -12,7 +12,7 @@ Verification layers covered:
   Layer 1 — Atomic XML Matching (parser node)
   Layer 2 — Syntactic Broom (linter node)
   Layer 4 — Context-Aware Self-Healing (conditional edges)
-  Layer 5 — Runtime Smoke Test (sandbox node)
+  Layer 5 — Runtime Smoke Test (executor node)
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from kappa.config import AgentConfig
 from kappa.defense.semantic import SemanticLoopDetector
 from kappa.graph.nodes import build_messages, lint_code, parse_llm_output
 from kappa.graph.state import AgentState
-from kappa.sandbox.executor import SandboxExecutor
+from kappa.sandbox.executor import HostExecutor
 from kappa.tools.registry import ToolRegistry
 
 
@@ -43,20 +43,20 @@ class SelfHealingGraph:
 
     Raises:
         BudgetExceededException: propagated from BudgetGate if budget runs out.
-        SandboxExecutionError:   propagated if sandbox infrastructure fails.
+        ExecutionError:          propagated if execution environment fails.
         SemanticLoopException:   if semantic repetition is detected.
     """
 
     def __init__(
         self,
         gate: BudgetGate,
-        sandbox: SandboxExecutor,
+        sandbox: HostExecutor,
         config: AgentConfig | None = None,
         registry: ToolRegistry | None = None,
         detector: SemanticLoopDetector | None = None,
     ) -> None:
         self._gate = gate
-        self._sandbox = sandbox
+        self._executor = sandbox
         self._config = config or AgentConfig()
         self._registry = registry
         self._detector = detector
@@ -121,8 +121,8 @@ class SelfHealingGraph:
         return {"status": "running"}
 
     def _sandbox_node(self, state: AgentState) -> dict:
-        """Execute code in isolated container, capture result."""
-        result = self._sandbox.execute(state["parsed_code"])
+        """Execute code on host, capture result."""
+        result = self._executor.execute(state["parsed_code"])
         sandbox_dict = {
             "exit_code": result.exit_code,
             "stdout": result.stdout,
@@ -239,9 +239,16 @@ class SelfHealingGraph:
     # ── Public API ──────────────────────────────────────────────
 
     def _initial_state(self, goal: str) -> AgentState:
+        from pathlib import Path
         workspace = ""
-        if self._sandbox.config.workspace_dir:
-            workspace = self._sandbox.config.container_workspace_path
+        output = ""
+        if self._executor.config.workspace_dir:
+            workspace = str(Path(self._executor.config.workspace_dir).resolve())
+        if self._executor.config.output_dir:
+            out = Path(self._executor.config.output_dir)
+            if not out.is_absolute() and self._executor.config.workspace_dir:
+                out = Path(self._executor.config.workspace_dir).resolve() / out
+            output = str(out.resolve())
         return {
             "goal": goal,
             "llm_output": "",
@@ -254,6 +261,7 @@ class SelfHealingGraph:
             "tool_calls": [],
             "memory_context": "",
             "workspace_path": workspace,
+            "output_path": output,
         }
 
     def run(self, goal: str, memory_context: str = "") -> AgentState:
@@ -267,7 +275,7 @@ class SelfHealingGraph:
 
         Raises:
             BudgetExceededException: If budget is exceeded mid-loop.
-            SandboxExecutionError: If sandbox infrastructure fails.
+            ExecutionError: If execution environment fails.
             SemanticLoopException: If semantic repetition is detected.
         """
         state = self._initial_state(goal)

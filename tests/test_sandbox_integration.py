@@ -1,129 +1,78 @@
-"""Integration tests for the Deterministic Sandbox (Phase 1 — Task 2).
+"""Integration tests for the Host Executor (replaces Docker sandbox).
 
-These tests run REAL Docker containers. Requires:
-- Docker daemon running
-- python:3.11-slim image pulled
+These tests run real code via subprocess on the host.  No Docker required.
 
-Verification scenarios from the Definition of Done:
+Verification scenarios:
 1. Normal code → exit_code=0, stdout captured
-2. Destructive command (rm -rf /) → host protected, error code returned
-3. Infinite loop → timeout enforced, container killed
-4. Network disabled → outbound connections blocked
-5. Memory limit → OOM killed
+2. Syntax error → exit_code != 0, stderr has SyntaxError
+3. Runtime error → exit_code=1, stderr has traceback
+4. Timeout → timed_out=True, exit_code=-1
+5. stdout/stderr separated correctly
+6. Each execution is isolated (no shared state between calls)
 """
 
 from __future__ import annotations
 
 import pytest
 
-from kappa.config import SandboxConfig
-from kappa.sandbox.executor import DockerRuntime, SandboxExecutor, SandboxResult
-
-
-def _docker_available() -> bool:
-    try:
-        import docker
-        docker.from_env().ping()
-        return True
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(
-    not _docker_available(), reason="Docker daemon not running"
-)
+from kappa.config import ExecutionConfig
+from kappa.sandbox.executor import HostExecutor, SandboxResult, always_approve
 
 
 @pytest.fixture
-def executor() -> SandboxExecutor:
-    config = SandboxConfig(timeout_seconds=15, memory_limit_mb=64)
-    return SandboxExecutor(runtime=DockerRuntime(), config=config)
+def executor(tmp_path) -> HostExecutor:
+    config = ExecutionConfig(
+        timeout_seconds=15,
+        workspace_dir=str(tmp_path),
+        output_dir=str(tmp_path / "output"),
+    )
+    return HostExecutor(config=config, approval_fn=always_approve)
 
 
 @pytest.fixture
-def fast_executor() -> SandboxExecutor:
+def fast_executor(tmp_path) -> HostExecutor:
     """Short timeout for infinite-loop tests."""
-    config = SandboxConfig(timeout_seconds=5, memory_limit_mb=64)
-    return SandboxExecutor(runtime=DockerRuntime(), config=config)
+    config = ExecutionConfig(
+        timeout_seconds=3,
+        workspace_dir=str(tmp_path),
+        output_dir=str(tmp_path / "output"),
+    )
+    return HostExecutor(config=config, approval_fn=always_approve)
 
 
-class TestRealSandbox:
+class TestHostExecutor:
 
-    def test_normal_execution(self, executor: SandboxExecutor):
-        """정상 코드 → exit_code=0, stdout 캡처."""
+    def test_normal_execution(self, executor: HostExecutor):
+        """Normal code → exit_code=0, stdout captured."""
         result = executor.execute("print('hello from sandbox')")
 
         assert result.exit_code == 0
         assert "hello from sandbox" in result.stdout
         assert result.timed_out is False
 
-    def test_destructive_rm_rf_contained(self, executor: SandboxExecutor):
-        """rm -rf / → 컨테이너 내부에서만 실행, 호스트 무사."""
-        result = executor.execute(
-            "import subprocess; subprocess.run(['rm', '-rf', '--no-preserve-root', '/'], capture_output=True)"
-        )
-
-        # 컨테이너 안에서 실행됐으므로 호스트는 무사
-        # (slim 이미지에서 rm은 permission denied 또는 부분 삭제 후 종료)
-        assert isinstance(result, SandboxResult)
-        # 중요: 이 테스트가 끝난 후에도 호스트 OS가 정상 동작 중이라는 것 자체가 증명
-
-    def test_syntax_error_returns_nonzero(self, executor: SandboxExecutor):
-        """구문 오류 → exit_code=1, stderr에 SyntaxError."""
+    def test_syntax_error_returns_nonzero(self, executor: HostExecutor):
+        """Syntax error → exit_code != 0, stderr has SyntaxError."""
         result = executor.execute("def f(:")
 
         assert result.exit_code != 0
         assert "SyntaxError" in result.stderr
 
-    def test_runtime_error_captured(self, executor: SandboxExecutor):
-        """런타임 오류 → exit_code=1, stderr에 트레이스백."""
+    def test_runtime_error_captured(self, executor: HostExecutor):
+        """Runtime error → exit_code=1, stderr has traceback."""
         result = executor.execute("print(undefined_variable)")
 
         assert result.exit_code == 1
         assert "NameError" in result.stderr
 
-    def test_infinite_loop_timeout(self, fast_executor: SandboxExecutor):
-        """무한 루프 → 타임아웃 후 강제 종료."""
+    def test_infinite_loop_timeout(self, fast_executor: HostExecutor):
+        """Infinite loop → timeout enforced."""
         result = fast_executor.execute("while True: pass")
 
         assert result.timed_out is True
         assert result.exit_code == -1
 
-    def test_network_disabled(self, executor: SandboxExecutor):
-        """네트워크 차단 → 외부 연결 불가."""
-        result = executor.execute(
-            "import urllib.request\n"
-            "try:\n"
-            "    urllib.request.urlopen('http://example.com', timeout=3)\n"
-            "    print('CONNECTED')\n"
-            "except Exception as e:\n"
-            "    print(f'BLOCKED: {e}')\n"
-            "    exit(1)"
-        )
-
-        assert "CONNECTED" not in result.stdout
-        assert result.exit_code != 0
-
-    def test_each_execution_is_isolated(self, executor: SandboxExecutor):
-        """매 실행 독립 — 이전 컨테이너의 상태가 누수되지 않음."""
-        # 첫 번째: 파일 생성
-        executor.execute("open('/tmp/secret.txt', 'w').write('leak')")
-
-        # 두 번째: 해당 파일 읽기 시도 → 새 컨테이너이므로 없어야 함
-        result = executor.execute(
-            "import os\n"
-            "if os.path.exists('/tmp/secret.txt'):\n"
-            "    print('LEAKED')\n"
-            "    exit(1)\n"
-            "else:\n"
-            "    print('ISOLATED')"
-        )
-
-        assert "ISOLATED" in result.stdout
-        assert result.exit_code == 0
-
-    def test_stdout_stderr_separated(self, executor: SandboxExecutor):
-        """stdout과 stderr가 분리되어 캡처됨."""
+    def test_stdout_stderr_separated(self, executor: HostExecutor):
+        """stdout and stderr are captured separately."""
         result = executor.execute(
             "import sys\n"
             "print('out-msg')\n"
@@ -132,3 +81,42 @@ class TestRealSandbox:
 
         assert "out-msg" in result.stdout
         assert "err-msg" in result.stderr
+
+    def test_each_execution_is_independent(self, executor: HostExecutor):
+        """Variables from one execute() call don't leak into the next."""
+        # First call defines a variable
+        executor.execute("x = 42")
+
+        # Second call: x should not be defined
+        result = executor.execute(
+            "try:\n"
+            "    print(x)\n"
+            "    exit(1)\n"
+            "except NameError:\n"
+            "    print('ISOLATED')"
+        )
+
+        assert "ISOLATED" in result.stdout
+        assert result.exit_code == 0
+
+    def test_returns_sandbox_result_type(self, executor: HostExecutor):
+        """execute() always returns a SandboxResult instance."""
+        result = executor.execute("pass")
+        assert isinstance(result, SandboxResult)
+
+    def test_empty_code_succeeds(self, executor: HostExecutor):
+        """Empty string is valid Python → exit_code=0."""
+        result = executor.execute("")
+        assert result.exit_code == 0
+
+    def test_multiline_code(self, executor: HostExecutor):
+        """Multi-line code executes correctly."""
+        code = (
+            "total = 0\n"
+            "for i in range(5):\n"
+            "    total += i\n"
+            "print(total)"
+        )
+        result = executor.execute(code)
+        assert result.exit_code == 0
+        assert "10" in result.stdout

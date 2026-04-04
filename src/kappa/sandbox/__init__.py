@@ -1,5 +1,5 @@
-"""Deterministic sandbox for isolated code execution."""
+"""Host-based code execution with safety validation."""
 
-from kappa.sandbox.executor import DockerRuntime, SandboxExecutor, SandboxResult
+from kappa.sandbox.executor import HostExecutor, SandboxResult
 
-__all__ = ["DockerRuntime", "SandboxExecutor", "SandboxResult"]
+__all__ = ["HostExecutor", "SandboxResult"]

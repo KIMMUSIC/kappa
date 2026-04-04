@@ -268,15 +268,14 @@ class TestOrchestratorHITLIntegration:
         import json
 
         from kappa.budget.gate import BudgetGate
-        from kappa.budget.tracker import BudgetTracker
         from kappa.config import (
             AgentConfig,
             BudgetConfig,
+            ExecutionConfig,
             OrchestratorConfig,
-            SandboxConfig,
         )
         from kappa.graph.orchestrator import OrchestratorGraph
-        from kappa.sandbox.executor import SandboxExecutor
+        from kappa.sandbox.executor import SandboxResult
 
         # Scripted LLM responses
         responses = iter([
@@ -312,13 +311,21 @@ class TestOrchestratorHITLIntegration:
         budget_config = BudgetConfig(max_total_tokens=100_000, max_cost_usd=10.0)
         gate = BudgetGate(provider=ScriptedProvider(), budget_config=budget_config)
 
-        class FakeRuntime:
-            def run(self, *, image, command, mem_limit, network_disabled, timeout, volumes=None):
-                from kappa.sandbox.executor import SandboxResult
-                code = command[-1] if command else ""
+        class FakeExecutor:
+            def __init__(self):
+                self._config = ExecutionConfig(
+                    timeout_seconds=5, workspace_dir=None, output_dir=None
+                )
+
+            @property
+            def config(self):
+                return self._config
+
+            def execute(self, code: str) -> SandboxResult:
                 import subprocess
+                import sys
                 result = subprocess.run(
-                    ["python", "-c", code],
+                    [sys.executable, "-c", code],
                     capture_output=True, text=True, timeout=5,
                 )
                 return SandboxResult(
@@ -327,14 +334,9 @@ class TestOrchestratorHITLIntegration:
                     stderr=result.stderr,
                 )
 
-        sandbox = SandboxExecutor(
-            runtime=FakeRuntime(),
-            config=SandboxConfig(timeout_seconds=5),
-        )
-
         return OrchestratorGraph(
             gate=gate,
-            sandbox=sandbox,
+            sandbox=FakeExecutor(),
             config=AgentConfig(max_self_heal_retries=1),
             orchestrator_config=OrchestratorConfig(max_retries_per_task=3),
             approval_callback=callback,

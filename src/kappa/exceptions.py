@@ -24,8 +24,12 @@ class ParsingError(KappaError):
     """Raised when LLM output violates the expected XML anchor format."""
 
 
-class SandboxExecutionError(KappaError):
-    """Raised when the sandbox environment itself fails (not the user code)."""
+class ExecutionError(KappaError):
+    """Raised when the execution environment itself fails (not the user code)."""
+
+
+# Backward-compatible alias
+SandboxExecutionError = ExecutionError
 
 
 class ToolExecutionError(KappaError):

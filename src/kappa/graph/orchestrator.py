@@ -32,7 +32,7 @@ from kappa.config import AgentConfig, OrchestratorConfig
 from kappa.defense.semantic import SemanticLoopDetector
 from kappa.graph.graph import SelfHealingGraph
 from kappa.infra.session_lane import SyncSessionLane
-from kappa.sandbox.executor import SandboxExecutor
+from kappa.sandbox.executor import HostExecutor
 from kappa.telemetry.manager import TelemetryManager, TrajectoryRecord
 from kappa.tools.registry import ToolRegistry
 
@@ -43,15 +43,16 @@ You are a task decomposition planner.  Break the given goal into \
 concrete, actionable subtasks that a code-generation agent can execute.
 
 Each subtask will be executed by a Python code-generation agent that runs \
-Python code in a sandbox. Therefore:
+Python code on the host. Therefore:
 - Frame every goal as a concrete Python programming task.
 - If the task involves creating files (HTML, CSS, JS, config, etc.), the goal \
 MUST say "Write Python code that creates <filename> with ..." — not just \
 "Create the HTML structure".
 - The agent can only produce Python code, so each goal must be achievable \
 by writing and executing a Python script.
-- The sandbox has a /workspace directory mounted from the host. \
-All file output MUST go to /workspace/ so it persists after execution.
+- The execution environment has two directories:
+  * {workspace_dir} — project source files for reference.
+  * {output_dir} — all generated files MUST be written here so they persist.
 
 Rules:
 - Each subtask gets a unique id: "task-001", "task-002", etc.
@@ -59,7 +60,7 @@ Rules:
 - Independent tasks have empty depends_on (they can run in parallel).
 - Generate between 2 and {max_subtasks} subtasks.
 - Each subtask goal must be self-contained and precise.
-- When the goal references modifying existing files, subtasks MUST read \nthe existing file from /workspace/ first, then write the updated version back.
+- When the goal references existing project files, subtasks MUST read \nfrom {workspace_dir} and write the modified version to {output_dir}.
 
 Output ONLY valid JSON (no markdown, no commentary):
 {{"tasks": [{{"id": "task-001", "goal": "...", "depends_on": []}}]}}
@@ -167,7 +168,7 @@ class OrchestratorGraph:
     def __init__(
         self,
         gate: BudgetGate,
-        sandbox: SandboxExecutor,
+        sandbox: HostExecutor,
         config: AgentConfig | None = None,
         orchestrator_config: OrchestratorConfig | None = None,
         registry: ToolRegistry | None = None,
@@ -178,7 +179,7 @@ class OrchestratorGraph:
         approval_callback: Callable[[dict[str, Any], dict[str, Any] | None], str] | None = None,
     ) -> None:
         self._gate = gate
-        self._sandbox = sandbox
+        self._executor = sandbox
         self._config = config or AgentConfig()
         self._orch_config = orchestrator_config or OrchestratorConfig()
         self._registry = registry
@@ -201,7 +202,7 @@ class OrchestratorGraph:
 
     def _scan_workspace(self) -> str:
         """Recursively scan workspace and return file listing for planner context."""
-        ws_dir = self._sandbox.config.workspace_dir
+        ws_dir = self._executor.config.workspace_dir
         if not ws_dir:
             return ""
         ws_path = Path(ws_dir).resolve()
@@ -247,12 +248,26 @@ class OrchestratorGraph:
         if len(entries) >= self._SCAN_MAX_ENTRIES:
             truncated = "\n  ... (truncated at " + str(self._SCAN_MAX_ENTRIES) + " entries)"
 
+        ws, out = self._resolve_dirs()
         return (
-            "\n\nProject files visible at /workspace/:\n"
+            f"\n\nProject files visible at {ws}. Write output to {out}:\n"
             + "\n".join(entries)
             + truncated
             + "\n"
         )
+
+    def _resolve_dirs(self) -> tuple[str, str]:
+        """Return resolved (workspace_dir, output_dir) as strings."""
+        cfg = self._executor.config
+        ws = str(Path(cfg.workspace_dir).resolve()) if cfg.workspace_dir else str(Path.cwd())
+        if cfg.output_dir:
+            out = Path(cfg.output_dir)
+            if not out.is_absolute() and cfg.workspace_dir:
+                out = Path(cfg.workspace_dir).resolve() / out
+            out_str = str(out.resolve())
+        else:
+            out_str = ws
+        return ws, out_str
 
     @staticmethod
     def _extract_workspace_paths(goal: str, ws_root: Path) -> list[Path]:
@@ -324,7 +339,7 @@ class OrchestratorGraph:
 
         worker = SelfHealingGraph(
             gate=self._gate,
-            sandbox=self._sandbox,
+            sandbox=self._executor,
             config=self._config,
             registry=self._registry,
             detector=self._detector,
@@ -353,9 +368,9 @@ class OrchestratorGraph:
                 if stdout or parsed_code:
                     part = f"[{dep_id}] {dep_task['goal']}"
                     if parsed_code:
-                        part += f"\nCode:\n{parsed_code[:500]}"
+                        part += f"\nCode:\n{parsed_code}"
                     if stdout:
-                        part += f"\nOutput:\n{stdout[:500]}"
+                        part += f"\nOutput:\n{stdout}"
                     dep_parts.append(part)
         if not dep_parts:
             return task
@@ -371,10 +386,13 @@ class OrchestratorGraph:
 
     def _planner_node(self, state: OrchestratorState) -> dict:
         """Decompose *main_goal* into a DAG of SubTasks via LLM."""
+        ws_dir, out_dir = self._resolve_dirs()
         prompt = PLANNER_PROMPT.format(
             goal=state["main_goal"],
             max_subtasks=self._orch_config.max_subtasks,
             workspace_context=self._scan_workspace(),
+            workspace_dir=ws_dir,
+            output_dir=out_dir,
         )
 
         plan_critique = state.get("plan_critique", "")
@@ -549,14 +567,14 @@ class OrchestratorGraph:
             output_text = "\n\n".join(output_parts) if output_parts else "(no output)"
 
             # Include workspace file contents for verification
-            if self._sandbox.config.workspace_dir:
-                ws_path = Path(self._sandbox.config.workspace_dir).resolve()
+            if self._executor.config.workspace_dir:
+                ws_path = Path(self._executor.config.workspace_dir).resolve()
                 if ws_path.exists():
                     ws_parts: list[str] = []
                     for f in sorted(ws_path.iterdir()):
                         if f.is_file():
                             try:
-                                content = f.read_text(errors="replace")[:2000]
+                                content = f.read_text(errors="replace")
                                 ws_parts.append(f"--- {f.name} ---\n{content}")
                             except Exception:
                                 ws_parts.append(f"--- {f.name} --- (unreadable)")

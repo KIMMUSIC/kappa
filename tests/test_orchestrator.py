@@ -32,7 +32,8 @@ from kappa.graph.orchestrator import (
     SubTask,
 )
 from kappa.infra.session_lane import SyncSessionLane
-from kappa.sandbox.executor import SandboxExecutor, SandboxResult
+from kappa.config import ExecutionConfig
+from kappa.sandbox.executor import SandboxResult
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -68,11 +69,17 @@ class _ThreadSafeProvider:
         )
 
 
-class _FakeRuntime:
-    """Minimal sandbox runtime that always succeeds."""
+class _FakeExecutor:
+    """Minimal sandbox executor that always succeeds."""
 
-    def run(self, *, image, command, mem_limit, network_disabled, timeout, volumes=None):
-        code = command[-1] if command else ""
+    def __init__(self):
+        self._config = ExecutionConfig(workspace_dir=None, output_dir=None)
+
+    @property
+    def config(self):
+        return self._config
+
+    def execute(self, code: str) -> SandboxResult:
         return SandboxResult(
             exit_code=0,
             stdout=f"ok:{code[:30]}",
@@ -90,8 +97,8 @@ def _make_gate(responses: list[str]) -> tuple[BudgetGate, _ThreadSafeProvider]:
     return gate, provider
 
 
-def _make_sandbox() -> SandboxExecutor:
-    return SandboxExecutor(runtime=_FakeRuntime())
+def _make_sandbox() -> _FakeExecutor:
+    return _FakeExecutor()
 
 
 def _successful_worker_result(goal: str = "test") -> dict:

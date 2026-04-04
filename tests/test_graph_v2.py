@@ -21,7 +21,8 @@ from kappa.exceptions import SemanticLoopException
 from kappa.graph.graph import SelfHealingGraph
 from kappa.graph.nodes import build_messages, parse_llm_output
 from kappa.memory.vfs import VFSManager
-from kappa.sandbox.executor import SandboxExecutor, SandboxResult
+from kappa.config import ExecutionConfig
+from kappa.sandbox.executor import SandboxResult
 from kappa.tools.builtins import ReadMemoryTool, WriteMemoryTool
 from kappa.tools.registry import ToolRegistry, ToolResult
 
@@ -47,14 +48,21 @@ class ScriptedProvider:
         )
 
 
-class ScriptedRuntime:
-    def __init__(self, results: list[SandboxResult]) -> None:
-        self._results = results
+class FakeExecutor:
+    """Returns pre-scripted execution results."""
+
+    def __init__(self, results=None, config=None):
+        self._results = results or [SandboxResult(exit_code=0, stdout="", stderr="")]
         self._index = 0
+        self._config = config or ExecutionConfig(workspace_dir=None, output_dir=None)
         self.calls: list[str] = []
 
-    def run(self, *, image, command, mem_limit, network_disabled, timeout, volumes=None) -> SandboxResult:
-        self.calls.append(command[-1] if command else "")
+    @property
+    def config(self):
+        return self._config
+
+    def execute(self, code: str) -> SandboxResult:
+        self.calls.append(code)
         result = self._results[min(self._index, len(self._results) - 1)]
         self._index += 1
         return result
@@ -62,17 +70,16 @@ class ScriptedRuntime:
 
 def _make_graph(
     provider: ScriptedProvider,
-    runtime: ScriptedRuntime,
+    runtime: FakeExecutor,
     registry: ToolRegistry | None = None,
     detector: SemanticLoopDetector | None = None,
     max_retries: int = 3,
 ) -> SelfHealingGraph:
     budget_config = BudgetConfig(max_total_tokens=100_000, max_cost_usd=100.0)
     gate = BudgetGate(provider=provider, budget_config=budget_config)
-    sandbox = SandboxExecutor(runtime=runtime)
     config = AgentConfig(max_self_heal_retries=max_retries)
     return SelfHealingGraph(
-        gate=gate, sandbox=sandbox, config=config,
+        gate=gate, sandbox=runtime, config=config,
         registry=registry, detector=detector,
     )
 
@@ -132,7 +139,7 @@ class TestToolRouting:
         provider = ScriptedProvider([
             '<think>Read memory</think>\n<tool_call>{"name": "echo", "kwargs": {"message": "hi"}}</tool_call>',
         ])
-        runtime = ScriptedRuntime([])  # sandbox not used
+        runtime = FakeExecutor(results=[])  # sandbox not used
 
         # Simple echo tool
         class EchoTool:
@@ -156,7 +163,7 @@ class TestToolRouting:
             '<think>Try tool</think>\n<tool_call>{"name": "unknown_tool", "kwargs": {}}</tool_call>',
             '<think>Fallback to code</think>\n<action>print("done")</action>',
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=0, stdout="done\n", stderr=""),
         ])
         registry = ToolRegistry()
@@ -175,7 +182,7 @@ class TestToolRouting:
             '<think>Try again</think>\n<tool_call>{"name": "bad", "kwargs": {}}</tool_call>',
             '<think>One more</think>\n<tool_call>{"name": "bad", "kwargs": {}}</tool_call>',
         ])
-        runtime = ScriptedRuntime([])
+        runtime = FakeExecutor(results=[])
         registry = ToolRegistry()
         graph = _make_graph(provider, runtime, registry=registry, max_retries=3)
 
@@ -189,7 +196,7 @@ class TestToolRouting:
             '<think>Try tool</think>\n<tool_call>{"name": "x", "kwargs": {}}</tool_call>',
             '<think>Fallback</think>\n<action>print("ok")</action>',
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=0, stdout="ok\n", stderr=""),
         ])
         graph = _make_graph(provider, runtime, registry=None)
@@ -214,7 +221,7 @@ class TestBuiltinToolsInGraph:
         provider = ScriptedProvider([
             '<think>Save learning</think>\n<tool_call>{"name": "write_memory", "kwargs": {"path": "LEARNINGS.md", "content": "Never repeat errors"}}</tool_call>',
         ])
-        runtime = ScriptedRuntime([])
+        runtime = FakeExecutor(results=[])
         graph = _make_graph(provider, runtime, registry=registry)
 
         result = graph.run("Save a learning")
@@ -269,7 +276,7 @@ class TestMemoryContextInjection:
         provider = ScriptedProvider([
             '<think>ok</think>\n<action>print("hi")</action>',
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=0, stdout="hi\n", stderr=""),
         ])
         graph = _make_graph(provider, runtime)
@@ -292,7 +299,7 @@ class TestSemanticDetectorInGraph:
             '<think>I will fix the parser error</think>\n<action>print(x)</action>',
             '<think>I will fix the parser error</think>\n<action>print(x)</action>',
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=1, stdout="", stderr="NameError"),
             SandboxResult(exit_code=1, stdout="", stderr="NameError"),
             SandboxResult(exit_code=1, stdout="", stderr="NameError"),
@@ -311,7 +318,7 @@ class TestSemanticDetectorInGraph:
             '<think>First approach: try direct print</think>\n<action>print(x)</action>',
             '<think>Second approach: define variable first</think>\n<action>x = 1\nprint(x)</action>',
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=1, stdout="", stderr="NameError"),
             SandboxResult(exit_code=0, stdout="1\n", stderr=""),
         ])
@@ -330,7 +337,7 @@ class TestSemanticDetectorInGraph:
             '<think>same</think>\n<action>print(x)</action>',
             '<think>same</think>\n<action>x=1\nprint(x)</action>',
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=1, stdout="", stderr="NameError"),
             SandboxResult(exit_code=1, stdout="", stderr="NameError"),
             SandboxResult(exit_code=0, stdout="1\n", stderr=""),
@@ -351,7 +358,7 @@ class TestMixedFlow:
         provider = ScriptedProvider([
             '<think>Read memory first</think>\n<tool_call>{"name": "echo", "kwargs": {"message": "context loaded"}}</tool_call>',
         ])
-        runtime = ScriptedRuntime([])
+        runtime = FakeExecutor(results=[])
 
         class EchoTool:
             name = "echo"
@@ -379,7 +386,7 @@ class TestBackwardCompatibility:
         provider = ScriptedProvider([
             '<think>Simple</think>\n<action>print("hello")</action>',
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=0, stdout="hello\n", stderr=""),
         ])
         graph = _make_graph(provider, runtime)
@@ -393,7 +400,7 @@ class TestBackwardCompatibility:
     def test_initial_state_has_new_fields(self):
         """_initial_state includes tool_calls and memory_context with defaults."""
         provider = ScriptedProvider(["<think>x</think>\n<action>pass</action>"])
-        runtime = ScriptedRuntime([SandboxResult(exit_code=0, stdout="", stderr="")])
+        runtime = FakeExecutor(results=[SandboxResult(exit_code=0, stdout="", stderr="")])
         graph = _make_graph(provider, runtime)
         state = graph._initial_state("test")
         assert state["tool_calls"] == []

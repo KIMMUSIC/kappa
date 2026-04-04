@@ -24,7 +24,8 @@ import pytest
 from kappa.budget.gate import BudgetGate, LLMResponse
 from kappa.config import BudgetConfig, OrchestratorConfig, TelemetryConfig
 from kappa.graph.orchestrator import OrchestratorGraph
-from kappa.sandbox.executor import SandboxExecutor, SandboxResult
+from kappa.config import ExecutionConfig
+from kappa.sandbox.executor import SandboxResult
 from kappa.telemetry.manager import TelemetryManager, TrajectoryRecord
 
 
@@ -49,8 +50,17 @@ class _MockProvider:
         )
 
 
-class _FakeRuntime:
-    def run(self, *, image, command, mem_limit, network_disabled, timeout, volumes=None):
+class _FakeExecutor:
+    """Minimal sandbox executor that always succeeds."""
+
+    def __init__(self):
+        self._config = ExecutionConfig(workspace_dir=None, output_dir=None)
+
+    @property
+    def config(self):
+        return self._config
+
+    def execute(self, code: str) -> SandboxResult:
         return SandboxResult(exit_code=0, stdout="ok", stderr="", timed_out=False)
 
 
@@ -376,7 +386,7 @@ class TestOrchestratorTelemetryIntegration:
 
         provider = _MockProvider([plan_resp, review_resp])
         gate = BudgetGate(provider=provider, budget_config=BudgetConfig(max_total_tokens=500_000))
-        sandbox = SandboxExecutor(runtime=_FakeRuntime())
+        sandbox = _FakeExecutor()
         orch = OrchestratorGraph(gate=gate, sandbox=sandbox, telemetry=mgr)
 
         with patch.object(orch, "_execute_subtask", return_value=self._worker_result()):
@@ -405,7 +415,7 @@ class TestOrchestratorTelemetryIntegration:
         plan_review_ok = json.dumps({"approved": True, "critique": "", "score": 0.9})
         provider = _MockProvider([plan_resp, plan_review_ok, review_reject, review_approve])
         gate = BudgetGate(provider=provider, budget_config=BudgetConfig(max_total_tokens=500_000))
-        sandbox = SandboxExecutor(runtime=_FakeRuntime())
+        sandbox = _FakeExecutor()
         orch = OrchestratorGraph(
             gate=gate, sandbox=sandbox, telemetry=mgr,
             orchestrator_config=OrchestratorConfig(max_retries_per_task=5),
@@ -446,7 +456,7 @@ class TestOrchestratorTelemetryIntegration:
 
         provider = _MockProvider([plan_resp] + reviews)
         gate = BudgetGate(provider=provider, budget_config=BudgetConfig(max_total_tokens=500_000))
-        sandbox = SandboxExecutor(runtime=_FakeRuntime())
+        sandbox = _FakeExecutor()
         orch = OrchestratorGraph(
             gate=gate, sandbox=sandbox, telemetry=mgr,
             orchestrator_config=OrchestratorConfig(max_parallel_workers=1),
@@ -471,7 +481,7 @@ class TestOrchestratorTelemetryIntegration:
 
         provider = _MockProvider([plan_resp, review_resp])
         gate = BudgetGate(provider=provider, budget_config=BudgetConfig(max_total_tokens=500_000))
-        sandbox = SandboxExecutor(runtime=_FakeRuntime())
+        sandbox = _FakeExecutor()
         orch = OrchestratorGraph(gate=gate, sandbox=sandbox)  # no telemetry
 
         with patch.object(orch, "_execute_subtask", return_value=self._worker_result()):

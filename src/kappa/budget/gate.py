@@ -88,7 +88,7 @@ class BudgetGate:
         *,
         messages: list[dict],
         model: str = "claude-sonnet-4-20250514",
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,
     ) -> LLMResponse:
         """Execute a budget-guarded LLM call.
 

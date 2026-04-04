@@ -418,19 +418,19 @@ def main() -> None:
     from kappa.config import (
         AgentConfig,
         BudgetConfig,
+        ExecutionConfig,
         OrchestratorConfig,
-        SandboxConfig,
     )
-    from kappa.exceptions import BudgetExceededException, SandboxExecutionError
+    from kappa.exceptions import BudgetExceededException, ExecutionError
     from kappa.graph.orchestrator import OrchestratorGraph
-    from kappa.sandbox.executor import DockerRuntime, SandboxExecutor
+    from kappa.sandbox.executor import HostExecutor, always_approve
 
     console = Console()
 
     console.print(
         Panel(
             "[bold]KAPPA Orchestrator Dashboard[/]\n"
-            "[dim]Phase 4: MCP + RAG + HITL + Rich CLI[/]",
+            "[dim]Phase 5: Host Execution + HITL[/]",
             border_style="bright_blue",
         )
     )
@@ -443,27 +443,20 @@ def main() -> None:
         console.print("Set ANTHROPIC_API_KEY in .env or environment.")
         sys.exit(1)
 
-    try:
-        runtime = DockerRuntime()
-    except SandboxExecutionError as e:
-        console.print(f"[red]Docker error:[/] {e}")
-        console.print("Start Docker Desktop first.")
-        sys.exit(1)
-
     budget_config = BudgetConfig(max_total_tokens=100_000, max_cost_usd=5.00)
-    sandbox_config = SandboxConfig(timeout_seconds=15, memory_limit_mb=128)
+    exec_config = ExecutionConfig(timeout_seconds=15)
     agent_config = AgentConfig(max_self_heal_retries=3)
     orch_config = OrchestratorConfig(max_rejections=3, max_subtasks=5)
 
     gate = BudgetGate(provider=provider, budget_config=budget_config)
-    sandbox = SandboxExecutor(runtime=runtime, config=sandbox_config)
+    executor = HostExecutor(config=exec_config, approval_fn=always_approve)
 
     # Create HITL interceptor
     interceptor = create_hitl_interceptor(gate.tracker, interactive=True)
 
     orchestrator = OrchestratorGraph(
         gate=gate,
-        sandbox=sandbox,
+        sandbox=executor,
         config=agent_config,
         orchestrator_config=orch_config,
         approval_callback=interceptor,
@@ -535,8 +528,8 @@ def main() -> None:
         except BudgetExceededException as e:
             console.print(f"\n[bold red]BUDGET EXCEEDED:[/] {e}\n")
             break
-        except SandboxExecutionError as e:
-            console.print(f"\n[bold red]SANDBOX ERROR:[/] {e}\n")
+        except ExecutionError as e:
+            console.print(f"\n[bold red]EXECUTION ERROR:[/] {e}\n")
         except KeyboardInterrupt:
             console.print("\n[dim]Interrupted.[/]\n")
 

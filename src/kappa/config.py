@@ -22,15 +22,17 @@ class BudgetConfig:
 
 
 @dataclass(frozen=True)
-class SandboxConfig:
-    """Sandbox execution constraints."""
+class ExecutionConfig:
+    """Host execution constraints."""
 
-    timeout_seconds: int = int(os.getenv("SANDBOX_TIMEOUT_SECONDS", "30"))
-    memory_limit_mb: int = int(os.getenv("SANDBOX_MEMORY_LIMIT_MB", "256"))
-    network_enabled: bool = False
-    docker_image: str = "python:3.11-slim"
+    timeout_seconds: int = int(os.getenv("SANDBOX_TIMEOUT_SECONDS", "300"))
     workspace_dir: str | None = os.getenv("SANDBOX_WORKSPACE_DIR", ".")
-    container_workspace_path: str = "/workspace"
+    output_dir: str | None = os.getenv("SANDBOX_OUTPUT_DIR", "output")
+    auto_approve: bool = os.getenv("EXECUTION_AUTO_APPROVE", "").lower() in ("1", "true", "yes")
+
+
+# Backward-compatible alias
+SandboxConfig = ExecutionConfig
 
 
 @dataclass(frozen=True)
@@ -57,7 +59,7 @@ class AgentConfig:
     model: str = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
     max_self_heal_retries: int = int(os.getenv("MAX_SELF_HEAL_RETRIES", "3"))
     budget: BudgetConfig = field(default_factory=BudgetConfig)
-    sandbox: SandboxConfig = field(default_factory=SandboxConfig)
+    execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     semantic: SemanticConfig = field(default_factory=SemanticConfig)
 

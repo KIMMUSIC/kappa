@@ -176,13 +176,14 @@ def build_messages(state: AgentState) -> list[dict]:
     workspace_path = state.get("workspace_path", "")
 
     prompt = SYSTEM_PROMPT
+    output_path = state.get("output_path", "")
     if workspace_path:
         prompt += (
-            f"\n- {workspace_path} is the user's project root (read-write)."
-            f"\n- Local file paths map 1:1: e.g. 'src/foo.py' → '{workspace_path}/src/foo.py'."
-            f"\n- To modify existing files: read from {workspace_path}/..., modify, write back."
-            f"\n- To create new files: write to the appropriate path under {workspace_path}/."
-            f"\n- Files written outside {workspace_path} will be lost when the container is destroyed."
+            f"\n- {workspace_path} is the project root. You can read files from here."
+            f"\n- {output_path or workspace_path} is where all generated files MUST be written."
+            f"\n- To reference existing files: read from {workspace_path}/src/foo.py etc."
+            f"\n- To create or modify files: write to {output_path or workspace_path}/."
+            f"\n- Use os.path.join() or pathlib.Path for all file paths."
         )
     if memory_context:
         prompt = (

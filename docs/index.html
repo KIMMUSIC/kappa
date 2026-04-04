@@ -465,8 +465,8 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
         <text class="n-label" x="590" y="76" text-anchor="middle">LINTER</text>
         <text class="n-sub" x="590" y="96" text-anchor="middle">AST Check</text>
         <rect class="node-box" x="770" y="50" width="120" height="60"/>
-        <text class="n-label" x="830" y="76" text-anchor="middle">SANDBOX</text>
-        <text class="n-sub" x="830" y="96" text-anchor="middle">Docker</text>
+        <text class="n-label" x="830" y="76" text-anchor="middle">EXECUTOR</text>
+        <text class="n-sub" x="830" y="96" text-anchor="middle">Host + Safety</text>
         <rect class="node-box" x="530" y="140" width="120" height="60" style="stroke:var(--blue)"/>
         <text class="n-label" x="590" y="166" text-anchor="middle" fill="var(--blue)">TOOL</text>
         <text class="n-sub" x="590" y="186" text-anchor="middle">Registry</text>
@@ -518,9 +518,9 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
       </div>
       <div class="o-arrow-d" id="oa-d" style="margin-top:0"><div class="pkt" id="op-d"></div></div>
       <div class="o-workers" id="o-workers">
-        <div class="o-worker" id="ow-1"><div class="wl">Worker #1</div><div class="wn">coder → parser → linter → sandbox</div></div>
-        <div class="o-worker" id="ow-2"><div class="wl">Worker #2</div><div class="wn">coder → parser → linter → sandbox</div></div>
-        <div class="o-worker" id="ow-3"><div class="wl">Worker #3</div><div class="wn">coder → parser → linter → sandbox</div></div>
+        <div class="o-worker" id="ow-1"><div class="wl">Worker #1</div><div class="wn">coder → parser → linter → executor</div></div>
+        <div class="o-worker" id="ow-2"><div class="wl">Worker #2</div><div class="wn">coder → parser → linter → executor</div></div>
+        <div class="o-worker" id="ow-3"><div class="wl">Worker #3</div><div class="wn">coder → parser → linter → executor</div></div>
       </div>
       <div style="text-align:center;margin-top:1rem">
         <div class="o-rej-label" id="o-prej" style="opacity:0;transition:opacity .4s">&#8634; PLAN REJECTED — critique와 함께 Planner로 재계획</div>
@@ -542,7 +542,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     <div class="fade-up" style="text-align:center;margin-top:3rem">
       <div class="sec-eyebrow">Autonomous Workspace</div>
       <div class="sec-title" style="margin-bottom:.4rem">Workspace Mount & Git Safety</div>
-      <p class="sec-desc" style="text-align:center;margin:0 auto 1.5rem">호스트 CWD를 Docker 컨테이너에 1:1 마운트하고, Git stash 기반 안전망으로 자율 에이전트의 파일 작업을 보호합니다.</p>
+      <p class="sec-desc" style="text-align:center;margin:0 auto 1.5rem">호스트에서 직접 실행하되 AST 경로 안전 검증 + HITL 승인으로 파일 작업을 보호하고, Git stash 안전망으로 이중 방어합니다.</p>
     </div>
     <div class="ws-flow fade-up">
       <div class="ws-node-s">
@@ -553,12 +553,12 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
       <div class="ws-pipe">
         <div class="ws-pipe-line"></div>
         <div class="ws-pipe-dot"></div>
-        <div class="ws-pipe-tag">rw mount</div>
+        <div class="ws-pipe-tag">safety scan</div>
       </div>
       <div class="ws-node-s ws-hl">
-        <div class="ws-ic" style="color:var(--amber)">/ws</div>
-        <div class="ws-nm">/workspace</div>
-        <div class="ws-ds">Docker 컨테이너</div>
+        <div class="ws-ic" style="color:var(--amber)">out</div>
+        <div class="ws-nm">/output</div>
+        <div class="ws-ds">호스트 실행</div>
       </div>
       <div class="ws-pipe">
         <div class="ws-pipe-line"></div>
@@ -604,13 +604,13 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     <div class="pipe">
       <div class="pipe-layer fade-left"><span class="p-num">L1</span><span class="p-name">Atomic XML Matching</span><span class="p-desc">LLM 출력이 &lt;think&gt;/&lt;action&gt;/&lt;tool_call&gt; 구조를 준수하는지 검증</span><span class="p-impl">parse_llm_output()</span></div>
       <div class="pipe-conn"></div>
-      <div class="pipe-layer fade-left" data-delay="1"><span class="p-num">L2</span><span class="p-name">Syntactic Broom</span><span class="p-desc">AST 파싱으로 문법 오류를 샌드박스 전송 전 사전 차단</span><span class="p-impl">lint_code()</span></div>
+      <div class="pipe-layer fade-left" data-delay="1"><span class="p-num">L2</span><span class="p-name">Syntactic Broom</span><span class="p-desc">AST 파싱으로 문법 오류를 실행 전 사전 차단</span><span class="p-impl">lint_code()</span></div>
       <div class="pipe-conn"></div>
       <div class="pipe-layer fade-left" data-delay="2"><span class="p-num">L3</span><span class="p-name">Semantic Defense</span><span class="p-desc">Jaccard 유사도 기반 의미론적 반복 감지 및 조기 차단</span><span class="p-impl">SemanticLoopDetector</span></div>
       <div class="pipe-conn"></div>
       <div class="pipe-layer fade-left" data-delay="3"><span class="p-num">L4</span><span class="p-name">Self-Healing</span><span class="p-desc">실행 오류 시 stderr + 원본 목표로 자동 교정 루프</span><span class="p-impl">conditional_edges</span></div>
       <div class="pipe-conn"></div>
-      <div class="pipe-layer fade-left" data-delay="4"><span class="p-num">L5</span><span class="p-name">Runtime Smoke Test</span><span class="p-desc">격리 컨테이너에서 제한 시간 내 동작 물리적 증명</span><span class="p-impl">SandboxExecutor</span></div>
+      <div class="pipe-layer fade-left" data-delay="4"><span class="p-num">L5</span><span class="p-name">Runtime Smoke Test</span><span class="p-desc">AST 안전 검증 후 호스트에서 제한 시간 내 동작 증명</span><span class="p-impl">HostExecutor</span></div>
     </div>
   </div>
 </section>
@@ -628,9 +628,9 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
         <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T1</span><span class="tl-name">Budget Gate & Circuit Breaker</span><span class="tl-count">9 ✓</span><span class="tl-chevron">▶</span></div>
         <div class="tl-body"><div class="tl-body-inner"><p>LLM API 통신부 최상단에 재무적 방어선 구축. 세션별 토큰/비용 이중 추적, 한도 초과 시 회로 차단기가 영구적으로 트립되어 모든 후속 API 호출을 물리적으로 차단합니다.</p></div></div>
       </div>
-      <div class="tl-item" data-code='container = self._client.containers.<span class="fn">run</span>(\n    image=image,\n    command=[<span class="str">"python"</span>, <span class="str">"-c"</span>, code],\n    mem_limit=<span class="str">f"{mem_limit}m"</span>,\n    network_disabled=<span class="kw">True</span>,\n    detach=<span class="kw">True</span>,\n)' data-file="sandbox/executor.py">
-        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T2</span><span class="tl-name">Deterministic Sandbox</span><span class="tl-count">27 ✓</span><span class="tl-chevron">▶</span></div>
-        <div class="tl-body"><div class="tl-body-inner"><p>에이전트 생성 코드를 호스트 OS에서 절대 실행하지 않는 격리 환경. 일회성 Docker 컨테이너에서 메모리 제한, 네트워크 차단, 타임아웃을 강제하고 실행 후 즉시 파괴합니다. Workspace Volume Mount로 지정된 호스트 디렉토리를 컨테이너에 바인드하여 생성 파일을 영속화합니다.</p></div></div>
+      <div class="tl-item" data-code='scan = self._validator.<span class="fn">validate</span>(code)\n<span class="kw">if not</span> self._approval_fn(code, scan.violations):\n    <span class="kw">return</span> <span class="fn">SandboxResult</span>(exit_code=<span class="nm">-1</span>, stderr=<span class="str">"blocked"</span>)\nresult = subprocess.<span class="fn">run</span>(\n    [sys.executable, <span class="str">"-c"</span>, code],\n    capture_output=<span class="kw">True</span>, timeout=config.timeout)' data-file="sandbox/executor.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T2</span><span class="tl-name">Host Executor + Safety</span><span class="tl-count">27 ✓</span><span class="tl-chevron">▶</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>Docker 컨테이너 대신 호스트에서 직접 실행. AST 기반 SafetyValidator가 위험 패턴(os.system, subprocess, exec/eval, shutil.rmtree)을 사전 차단하고, HITL 승인 콜백이 실행을 게이트합니다. subprocess.run으로 타임아웃을 강제하며, output_dir을 CWD로 설정하여 생성 파일을 영속화합니다.</p></div></div>
       </div>
       <div class="tl-item" data-code='graph.<span class="fn">set_entry_point</span>(<span class="str">"coder"</span>)\ngraph.<span class="fn">add_edge</span>(<span class="str">"coder"</span>, <span class="str">"parser"</span>)\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"parser"</span>, route_after_parse)\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"linter"</span>, route_after_lint)\ngraph.<span class="fn">add_conditional_edges</span>(<span class="str">"sandbox"</span>, route_after_sandbox)' data-file="graph/graph.py">
         <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T3</span><span class="tl-name">Self-Healing Loop</span><span class="tl-count">17 ✓</span><span class="tl-chevron">▶</span></div>
@@ -692,13 +692,13 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
 
     <div class="tl-phase fade-up">
       <div class="tl-phase-label">Phase 5 — Production Launch</div>
-      <div class="tl-item" data-code='<span class="kw">def</span> <span class="fn">build_orchestrator</span>(args):\n    provider = <span class="fn">AnthropicProvider</span>()\n    runtime = <span class="fn">DockerRuntime</span>()\n    gate = <span class="fn">BudgetGate</span>(provider=provider)\n    sandbox = <span class="fn">SandboxExecutor</span>(runtime=runtime)\n    registry = <span class="fn">ToolRegistry</span>(tracker=gate.tracker)\n    detector = <span class="fn">SemanticLoopDetector</span>()\n    interceptor = <span class="fn">create_hitl_interceptor</span>(gate.tracker)\n    <span class="kw">return</span> <span class="fn">OrchestratorGraph</span>(\n        gate, sandbox, registry=registry,\n        detector=detector, approval_callback=interceptor)' data-file="main.py">
+      <div class="tl-item" data-code='<span class="kw">def</span> <span class="fn">build_orchestrator</span>(args):\n    provider = <span class="fn">AnthropicProvider</span>()\n    gate = <span class="fn">BudgetGate</span>(provider=provider)\n    executor = <span class="fn">HostExecutor</span>(config=exec_config)\n    registry = <span class="fn">ToolRegistry</span>(tracker=gate.tracker)\n    detector = <span class="fn">SemanticLoopDetector</span>()\n    interceptor = <span class="fn">create_hitl_interceptor</span>(gate.tracker)\n    <span class="kw">return</span> <span class="fn">OrchestratorGraph</span>(\n        gate, executor, registry=registry,\n        detector=detector, approval_callback=interceptor)' data-file="main.py">
         <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T14</span><span class="tl-name">Production Entrypoint & DI Root</span><span class="tl-count">&#9733;</span><span class="tl-chevron">&#9654;</span></div>
-        <div class="tl-body"><div class="tl-body-inner"><p>모든 프로덕션 컴포넌트를 하나의 DI Root(main.py)에서 조립하는 최종 엔트리포인트. AnthropicProvider, DockerRuntime, ToolRegistry, SemanticLoopDetector, TelemetryManager, HITLInterceptor를 실체화하고 OrchestratorGraph에 주입합니다. argparse로 --goal, --auto-approve, --max-tokens 등을 지원하며, 단일 실행 모드와 인터랙티브 REPL 모드를 모두 제공합니다.</p></div></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>모든 프로덕션 컴포넌트를 하나의 DI Root(main.py)에서 조립하는 최종 엔트리포인트. AnthropicProvider, HostExecutor, ToolRegistry, SemanticLoopDetector, TelemetryManager, HITLInterceptor를 실체화하고 OrchestratorGraph에 주입합니다. argparse로 --goal, --auto-approve, --max-tokens 등을 지원하며, 단일 실행 모드와 인터랙티브 REPL 모드를 모두 제공합니다.</p></div></div>
       </div>
       <div class="tl-item" data-code='<span class="cm"># config.py — CWD를 기본 workspace로</span>\nworkspace_dir: str = os.<span class="fn">getenv</span>(<span class="str">"SANDBOX_WORKSPACE_DIR"</span>, <span class="str">"."</span>)\n\n<span class="cm"># orchestrator.py — 프로젝트 파일 스캔</span>\n<span class="kw">def</span> <span class="fn">_scan_workspace</span>(self) -> str:\n    root = Path(self._config.workspace_dir).<span class="fn">resolve</span>()\n    entries = <span class="fn">sorted</span>(str(p.<span class="fn">relative_to</span>(root)) <span class="kw">for</span> p <span class="kw">in</span> root.<span class="fn">rglob</span>(<span class="str">"*"</span>))\n    <span class="kw">return</span> <span class="str">"\\n"</span>.<span class="fn">join</span>(entries[:<span class="nm">80</span>])\n\n<span class="cm"># cli.py — Git stash 안전망</span>\n<span class="kw">def</span> <span class="fn">_git_snapshot</span>():\n    subprocess.<span class="fn">run</span>([<span class="str">"git"</span>, <span class="str">"stash"</span>, <span class="str">"push"</span>,\n        <span class="str">"-m"</span>, <span class="str">"kappa-sandbox-snapshot"</span>])' data-file="config.py + orchestrator.py + cli.py">
         <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T15</span><span class="tl-name">CWD Workspace Mount & Git Safety</span><span class="tl-count">1 &#10003;</span><span class="tl-chevron">&#9654;</span></div>
-        <div class="tl-body"><div class="tl-body-inner"><p>호스트 CWD를 Docker 컨테이너 /workspace에 read-write 마운트하여 로컬 파일 경로가 1:1로 매핑됩니다. _scan_workspace()가 프로젝트 파일을 재귀 탐색(깊이 3, 최대 80항목)하여 Planner에게 파일 컨텍스트를 주입하고, Worker 프롬프트에도 경로 매핑을 안내합니다. Git stash 기반 안전망이 실행 전 스냅샷을 생성하고, 성공 시 diff를 표시하며, 실패 시 자동 복원합니다.</p></div></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>호스트 CWD를 workspace_dir로 지정하여 프로젝트 파일을 직접 참조합니다. _scan_workspace()가 프로젝트 파일을 재귀 탐색(깊이 3, 최대 80항목)하여 Planner에게 파일 컨텍스트를 주입하고, Worker 프롬프트에 호스트 경로를 안내합니다. Git stash 기반 안전망이 실행 전 스냅샷을 생성하고, 성공 시 diff를 표시하며, 실패 시 자동 복원합니다.</p></div></div>
       </div>
     </div>
   </div>
@@ -712,7 +712,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     <p class="sec-desc fade-up" data-delay="2">각 모듈은 독립 프로토콜 기반으로 설계되어 테스트 시 Mock으로 완전 교체 가능합니다.</p>
     <div class="bento">
       <div class="b-card b-wide fade-up"><div class="b-icon amber">$</div><h3>kappa.budget</h3><p><strong>BudgetTracker</strong> — 스레드 안전 토큰/비용 추적. RLock 기반.<br><strong>BudgetGate</strong> — LLM 호출 래퍼. pre_check → call → record_usage.<br><strong>LLMProvider</strong> — Protocol. AnthropicProvider 구현체 제공.</p></div>
-      <div class="b-card fade-up" data-delay="1"><div class="b-icon blue">S</div><h3>kappa.sandbox</h3><p><strong>SandboxExecutor</strong> — 코드 → Docker 컨테이너 실행. CWD 자동 마운트.<br><strong>ContainerRuntime</strong> — Protocol. DockerRuntime.<br><strong>SandboxConfig</strong> — workspace_dir 기본값 CWD(.).</p></div>
+      <div class="b-card fade-up" data-delay="1"><div class="b-icon blue">S</div><h3>kappa.sandbox</h3><p><strong>HostExecutor</strong> — 코드 → 호스트 직접 실행 + AST 안전 검증.<br><strong>SafetyValidator</strong> — 위험 패턴 사전 차단.<br><strong>ExecutionConfig</strong> — workspace_dir, output_dir, auto_approve.</p></div>
       <div class="b-card b-wide fade-up" data-delay="2"><div class="b-icon dim">G</div><h3>kappa.graph</h3><p><strong>SelfHealingGraph V2</strong> — 5-node LangGraph StateGraph. &lt;action&gt;/&lt;tool_call&gt; 분기 파서.<br><strong>AgentState</strong> — TypedDict + tool_calls, memory_context.</p></div>
       <div class="b-card fade-up" data-delay="3"><div class="b-icon green">M</div><h3>kappa.memory</h3><p><strong>VFSManager</strong> — 격리 작업공간 파일 시스템.<br><strong>Path Traversal</strong> — ../ 공격 원천 차단.</p></div>
       <div class="b-card fade-up"><div class="b-icon blue">T</div><h3>kappa.tools</h3><p><strong>ToolRegistry</strong> — 도구 등록/디스패치 + 예산 연동.<br><strong>BaseTool</strong> — Protocol. 플러그 앤 플레이.</p></div>
@@ -731,7 +731,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
         <div class="cb-bar"><i></i><i></i><i></i><span>Module Dependency</span></div>
 <pre><span class="cm"># Phase 1: 방어선 구축</span>
 <span class="fn">BudgetGate</span>      ← <span class="fn">SelfHealingGraph</span>._coder_node
-<span class="fn">SandboxExecutor</span> ← <span class="fn">SelfHealingGraph</span>._sandbox_node
+<span class="fn">HostExecutor</span>     ← <span class="fn">SelfHealingGraph</span>._sandbox_node
 
 <span class="cm"># Phase 2: 인지적 자율성 이식</span>
 <span class="fn">VFSManager</span>      ← <span class="fn">ReadMemoryTool</span> / <span class="fn">WriteMemoryTool</span>
@@ -754,7 +754,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
                      모든 실체 컴포넌트를 조립 → <span class="fn">run_dashboard</span>()
 
 <span class="cm"># Phase 5.5: 자율 워크스페이스 — CWD 마운트 + Git 안전망</span>
-<span class="fn">SandboxConfig</span>     ← workspace_dir 기본값 <span class="str">"."</span> (CWD)
+<span class="fn">ExecutionConfig</span>   ← workspace_dir 기본값 <span class="str">"."</span> (CWD)
 <span class="fn">_scan_workspace</span>   ← <span class="fn">OrchestratorGraph</span>._planner_node 컨텍스트 주입
 <span class="fn">_git_snapshot</span>     ← <span class="fn">cli.py</span> REPL git stash 안전망
 
@@ -775,8 +775,8 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     <div class="test-phase-label fade-up">Phase 1</div>
     <div class="test-rings fade-up">
       <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="9">0</div><div class="ring-label">Budget Gate</div></div>
-      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="19">0</div><div class="ring-label">Sandbox (Unit)</div></div>
-      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="10">0</div><div class="ring-label">Sandbox (Docker)</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="22">0</div><div class="ring-label">Executor (Unit)</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="9">0</div><div class="ring-label">Executor (Host)</div></div>
       <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="17">0</div><div class="ring-label">Self-Healing</div></div>
     </div>
     <div class="test-phase-label fade-up">Phase 2</div>
@@ -867,8 +867,8 @@ document.querySelectorAll('.test-rings').forEach(function(el){rObs.observe(el)})
     {t:'[planner] Decomposing goal → 3 subtasks',c:'step'},
     {t:'[hitl] task-001 auto-approved',c:'step'},
     {t:'[dispatch] Spawning 3 workers...',c:'step'},
-    {t:'[worker-1] coder → parser → linter → sandbox ✓',c:'ok'},
-    {t:'[worker-2] coder → parser → linter → sandbox ✓',c:'ok'},
+    {t:'[worker-1] coder → parser → linter → executor ✓',c:'ok'},
+    {t:'[worker-2] coder → parser → linter → executor ✓',c:'ok'},
     {t:'[worker-3] mcp:github:search → RAG inject ✓',c:'ok'},
     {t:'[reviewer] Quality Gate: APPROVED',c:'ok'},
     {t:'[finalize] Merging results → output ready',c:'ok'},
@@ -1001,7 +1001,7 @@ function toggleTl(hdr){
 
 /* ── Marquee ───────────────────────────────────────────── */
 (function(){
-  var items=['Python 3.11+','LangGraph','Docker','pytest','Anthropic','MCP Protocol','RAG Pipeline','Rich CLI','HITL','Workspace Mount','Git Safety','TypedDict','asyncio','ThreadPoolExecutor','JSONL','StateGraph'];
+  var items=['Python 3.11+','LangGraph','subprocess','pytest','Anthropic','MCP Protocol','RAG Pipeline','Rich CLI','HITL','AST Safety','Git Safety','TypedDict','asyncio','ThreadPoolExecutor','JSONL','StateGraph'];
   var m=document.getElementById('marquee');
   var html=items.map(function(s){return'<span>'+s+'</span>'}).join('');
   m.innerHTML=html+html; // duplicate for seamless loop

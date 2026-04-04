@@ -21,7 +21,8 @@ from kappa.config import AgentConfig, BudgetConfig
 from kappa.exceptions import BudgetExceededException
 from kappa.graph.graph import SelfHealingGraph
 from kappa.graph.nodes import lint_code, parse_llm_output
-from kappa.sandbox.executor import SandboxExecutor, SandboxResult
+from kappa.config import ExecutionConfig
+from kappa.sandbox.executor import SandboxResult
 
 
 # ── Test doubles ────────────────────────────────────────────────
@@ -52,25 +53,21 @@ class ScriptedProvider:
         )
 
 
-class ScriptedRuntime:
-    """Returns pre-scripted sandbox results in sequence."""
+class FakeExecutor:
+    """Returns pre-scripted execution results."""
 
-    def __init__(self, results: list[SandboxResult]) -> None:
-        self._results = results
+    def __init__(self, results=None, config=None):
+        self._results = results or [SandboxResult(exit_code=0, stdout="", stderr="")]
         self._index = 0
+        self._config = config or ExecutionConfig(workspace_dir=None, output_dir=None)
         self.calls: list[str] = []
 
-    def run(
-        self,
-        *,
-        image: str,
-        command: list[str],
-        mem_limit: str,
-        network_disabled: bool,
-        timeout: int,
-        volumes: dict | None = None,
-    ) -> SandboxResult:
-        self.calls.append(command[-1] if command else "")
+    @property
+    def config(self):
+        return self._config
+
+    def execute(self, code: str) -> SandboxResult:
+        self.calls.append(code)
         result = self._results[min(self._index, len(self._results) - 1)]
         self._index += 1
         return result
@@ -78,13 +75,12 @@ class ScriptedRuntime:
 
 def _make_components(
     provider: ScriptedProvider,
-    runtime: ScriptedRuntime,
+    runtime: FakeExecutor,
     max_tokens: int = 100_000,
-) -> tuple[BudgetGate, SandboxExecutor]:
+) -> tuple[BudgetGate, FakeExecutor]:
     budget_config = BudgetConfig(max_total_tokens=max_tokens, max_cost_usd=100.0)
     gate = BudgetGate(provider=provider, budget_config=budget_config)
-    sandbox = SandboxExecutor(runtime=runtime)
-    return gate, sandbox
+    return gate, runtime
 
 
 # ── Parser unit tests (Layer 1) ────────────────────────────────
@@ -155,7 +151,7 @@ class TestSelfHealingGraph:
         provider = ScriptedProvider([
             "<think>Simple print</think>\n<action>print('hello')</action>",
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=0, stdout="hello\n", stderr=""),
         ])
         gate, sandbox = _make_components(provider, runtime)
@@ -176,7 +172,7 @@ class TestSelfHealingGraph:
             "<think>Print x</think>\n<action>print(x)</action>",
             "<think>Define x first</think>\n<action>x = 42\nprint(x)</action>",
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=1, stdout="", stderr="NameError: name 'x' is not defined"),
             SandboxResult(exit_code=0, stdout="42\n", stderr=""),
         ])
@@ -199,7 +195,7 @@ class TestSelfHealingGraph:
             "<think>Define function</think>\n<action>def f(\n  return 1</action>",
             "<think>Fix syntax</think>\n<action>def f():\n  return 1\nprint(f())</action>",
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             # Only one sandbox call — first attempt never reaches sandbox
             SandboxResult(exit_code=0, stdout="1\n", stderr=""),
         ])
@@ -222,7 +218,7 @@ class TestSelfHealingGraph:
             "Here's the code: print('hello')",  # No XML anchors
             "<think>Use proper format</think>\n<action>print('hello')</action>",
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=0, stdout="hello\n", stderr=""),
         ])
         gate, sandbox = _make_components(provider, runtime)
@@ -243,7 +239,7 @@ class TestSelfHealingGraph:
             "<think>Fix syntax</think>\n<action>print(undefined)</action>",
             "<think>Fix everything</think>\n<action>print('done')</action>",
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             # Call 1: attempt 2 code (attempt 1 caught by linter)
             SandboxResult(exit_code=1, stdout="", stderr="NameError: name 'undefined'"),
             # Call 2: attempt 3 code
@@ -267,7 +263,7 @@ class TestSelfHealingGraph:
             "<think>Try again</think>\n<action>print(y)</action>",
             "<think>Try once more</think>\n<action>print(z)</action>",
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=1, stdout="", stderr="NameError: name 'x'"),
             SandboxResult(exit_code=1, stdout="", stderr="NameError: name 'y'"),
             SandboxResult(exit_code=1, stdout="", stderr="NameError: name 'z'"),
@@ -287,13 +283,12 @@ class TestSelfHealingGraph:
         provider = ScriptedProvider([
             "<think>ok</think>\n<action>print('hi')</action>",
         ])
-        runtime = ScriptedRuntime([
+        sandbox = FakeExecutor(results=[
             SandboxResult(exit_code=0, stdout="hi\n", stderr=""),
         ])
         # Tiny budget — first LLM call (150 tokens) exceeds limit of 10
         budget_config = BudgetConfig(max_total_tokens=10, max_cost_usd=100.0)
         gate = BudgetGate(provider=provider, budget_config=budget_config)
-        sandbox = SandboxExecutor(runtime=runtime)
         graph = SelfHealingGraph(gate=gate, sandbox=sandbox)
 
         with pytest.raises(BudgetExceededException):
@@ -306,7 +301,7 @@ class TestSelfHealingGraph:
             "<think>fix</think>\n<action>def f(:</action>",  # syntax error
             "<think>fix</think>\n<action>print(z)</action>",  # runtime error
         ])
-        runtime = ScriptedRuntime([
+        runtime = FakeExecutor(results=[
             SandboxResult(exit_code=1, stdout="", stderr="NameError: z"),
         ])
         config = AgentConfig(max_self_heal_retries=3)
