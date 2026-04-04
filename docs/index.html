@@ -354,12 +354,12 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
 .ws-node-s .ws-ic{font-family:var(--font-mono);font-size:.9rem;font-weight:700;margin-bottom:.15rem}
 .ws-node-s .ws-nm{font-family:var(--font-mono);font-size:.72rem;color:var(--text);font-weight:500}
 .ws-node-s .ws-ds{font-size:.6rem;color:var(--text-dim);margin-top:.15rem}
-.ws-pipe{display:flex;flex-direction:column;align-items:center;width:50px;position:relative;padding-top:.2rem}
+.ws-pipe{display:flex;flex-direction:column;align-items:center;width:60px;position:relative;padding-top:.2rem;overflow:visible}
 .ws-pipe-line{width:100%;height:2px;background:linear-gradient(90deg,var(--border),var(--amber),var(--border))}
 .ws-pipe-dot{width:6px;height:6px;border-radius:50%;background:var(--amber);position:absolute;top:0;
   animation:ws-dot 2s ease-in-out infinite;box-shadow:0 0 8px var(--amber)}
 @keyframes ws-dot{0%{left:0;opacity:0}20%{opacity:1}80%{opacity:1}100%{left:calc(100% - 6px);opacity:0}}
-.ws-pipe-tag{font-family:var(--font-mono);font-size:.55rem;color:var(--amber);margin-top:.4rem;letter-spacing:1px}
+.ws-pipe-tag{font-family:var(--font-mono);font-size:.55rem;color:var(--amber);margin-top:.4rem;letter-spacing:1px;white-space:nowrap;text-align:center}
 .ws-git{display:flex;align-items:center;justify-content:center;gap:.6rem;margin:1.5rem auto 0;
   padding:.5rem 1.2rem;border:1px dashed var(--border);border-radius:8px;width:fit-content;transition:border-color .3s}
 .ws-git:hover{border-color:var(--green)}
@@ -538,19 +538,6 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
       <div class="o-progress" id="o-prog"></div>
     </div>
 
-    <div class="p3-grid fade-up">
-      <div class="p3-card"><div class="tag">Planner</div><h4>DAG 분해 전략</h4><p>LLM에게 목표를 전달하면 depends_on으로 연결된 SubTask DAG를 JSON으로 반환. 최대 10개 서브태스크 제한.</p></div>
-      <div class="p3-card"><div class="tag">Plan Review</div><h4>계획 사전 검증</h4><p>Planner 산출물을 실행 전에 LLM이 구조 검토. 비구체적 목표, 잘못된 의존성, 누락 단계 감지 시 critique와 함께 재계획. 최대 2회.</p></div>
-      <div class="p3-card"><div class="tag">Quality Gate</div><h4>Worker 산출물 검수</h4><p>Reviewer LLM이 워커 코드와 실행 결과를 평가. 거부 시 critique가 워커에 주입. 누적 3회 초과 시 실패.</p></div>
-      <div class="p3-card"><div class="tag">Telemetry</div><h4>Agent-RRM 궤적 기록</h4><p>think(추론), critique(비평), score(0.0~1.0)를 JSONL에 누적하여 사후 분석 지원.</p></div>
-      <div class="p3-card"><div class="tag">Session Lane</div><h4>Per-Key 자원 직렬화</h4><p>SyncSessionLane이 동일 키 동시 접근 직렬화. 메타 Lock + 개별 Lock 2계층.</p></div>
-      <div class="p3-card"><div class="tag">Jitter Backoff</div><h4>Decorrelated Jitter</h4><p>AWS 권장 알고리즘으로 Thundering Herd를 Jitter로 분산.</p></div>
-      <div class="p3-card"><div class="tag">Super-Graph</div><h4>계층적 그래프 패턴</h4><p>OrchestratorGraph가 SelfHealingGraph를 블랙박스 워커로 소비. Additive-Only 설계.</p></div>
-      <div class="p3-card"><div class="tag">Workspace</div><h4>CWD Volume Mount</h4><p>호스트 CWD를 /workspace에 rw 자동 마운트. 로컬 파일 경로가 1:1로 매핑되어 에이전트가 기존 파일을 읽고 수정할 수 있습니다.</p></div>
-      <div class="p3-card"><div class="tag">Scanner</div><h4>Workspace Context Scan</h4><p>_scan_workspace()가 프로젝트 루트를 재귀 탐색(깊이 3, 최대 80개)하여 Planner에게 파일 목록을 주입합니다.</p></div>
-      <div class="p3-card"><div class="tag">Git Safety</div><h4>Stash-Based Snapshot</h4><p>실행 전 git stash 스냅샷, 성공 시 git diff 표시, 실패 시 자동 복원. 자율 에이전트의 안전망입니다.</p></div>
-    </div>
-
     <!-- Workspace Mount Flow -->
     <div class="ws-flow fade-up" style="margin-top:2.5rem">
       <div class="ws-node-s">
@@ -586,6 +573,19 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
       <span class="ws-ok">diff</span>
       <span style="color:var(--text-dim)">|</span>
       <span class="ws-fail">restore</span>
+    </div>
+
+    <div class="p3-grid fade-up">
+      <div class="p3-card"><div class="tag">Planner</div><h4>DAG 분해 전략</h4><p>LLM에게 목표를 전달하면 depends_on으로 연결된 SubTask DAG를 JSON으로 반환. 최대 10개 서브태스크 제한.</p></div>
+      <div class="p3-card"><div class="tag">Plan Review</div><h4>계획 사전 검증</h4><p>Planner 산출물을 실행 전에 LLM이 구조 검토. 비구체적 목표, 잘못된 의존성, 누락 단계 감지 시 critique와 함께 재계획. 최대 2회.</p></div>
+      <div class="p3-card"><div class="tag">Quality Gate</div><h4>Worker 산출물 검수</h4><p>Reviewer LLM이 워커 코드와 실행 결과를 평가. 거부 시 critique가 워커에 주입. 누적 3회 초과 시 실패.</p></div>
+      <div class="p3-card"><div class="tag">Telemetry</div><h4>Agent-RRM 궤적 기록</h4><p>think(추론), critique(비평), score(0.0~1.0)를 JSONL에 누적하여 사후 분석 지원.</p></div>
+      <div class="p3-card"><div class="tag">Session Lane</div><h4>Per-Key 자원 직렬화</h4><p>SyncSessionLane이 동일 키 동시 접근 직렬화. 메타 Lock + 개별 Lock 2계층.</p></div>
+      <div class="p3-card"><div class="tag">Jitter Backoff</div><h4>Decorrelated Jitter</h4><p>AWS 권장 알고리즘으로 Thundering Herd를 Jitter로 분산.</p></div>
+      <div class="p3-card"><div class="tag">Super-Graph</div><h4>계층적 그래프 패턴</h4><p>OrchestratorGraph가 SelfHealingGraph를 블랙박스 워커로 소비. Additive-Only 설계.</p></div>
+      <div class="p3-card"><div class="tag">Workspace</div><h4>CWD Volume Mount</h4><p>호스트 CWD를 /workspace에 rw 자동 마운트. 로컬 파일 경로가 1:1로 매핑되어 에이전트가 기존 파일을 읽고 수정할 수 있습니다.</p></div>
+      <div class="p3-card"><div class="tag">Scanner</div><h4>Workspace Context Scan</h4><p>_scan_workspace()가 프로젝트 루트를 재귀 탐색(깊이 3, 최대 80개)하여 Planner에게 파일 목록을 주입합니다.</p></div>
+      <div class="p3-card"><div class="tag">Git Safety</div><h4>Stash-Based Snapshot</h4><p>실행 전 git stash 스냅샷, 성공 시 git diff 표시, 실패 시 자동 복원. 자율 에이전트의 안전망입니다.</p></div>
     </div>
   </div>
 </section>
