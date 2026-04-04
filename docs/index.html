@@ -344,6 +344,35 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
   .cursor,.marquee-inner{animation:none}
   body::before{display:none}
 }
+
+/* ── Workspace Mount Flow ────────────────────────────── */
+.ws-flow{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap}
+.ws-node-s{text-align:center;padding:1rem .8rem;border:1px solid var(--border);border-radius:10px;
+  background:var(--bg-surface);min-width:120px;transition:all .4s;cursor:default}
+.ws-node-s:hover{border-color:var(--border-hover);background:var(--bg-elevated)}
+.ws-node-s.ws-hl{border-color:var(--amber);box-shadow:0 0 16px var(--amber-dim)}
+.ws-node-s .ws-ic{font-family:var(--font-mono);font-size:.9rem;font-weight:700;margin-bottom:.15rem}
+.ws-node-s .ws-nm{font-family:var(--font-mono);font-size:.72rem;color:var(--text);font-weight:500}
+.ws-node-s .ws-ds{font-size:.6rem;color:var(--text-dim);margin-top:.15rem}
+.ws-pipe{display:flex;flex-direction:column;align-items:center;width:50px;position:relative;padding-top:.2rem}
+.ws-pipe-line{width:100%;height:2px;background:linear-gradient(90deg,var(--border),var(--amber),var(--border))}
+.ws-pipe-dot{width:6px;height:6px;border-radius:50%;background:var(--amber);position:absolute;top:0;
+  animation:ws-dot 2s ease-in-out infinite;box-shadow:0 0 8px var(--amber)}
+@keyframes ws-dot{0%{left:0;opacity:0}20%{opacity:1}80%{opacity:1}100%{left:calc(100% - 6px);opacity:0}}
+.ws-pipe-tag{font-family:var(--font-mono);font-size:.55rem;color:var(--amber);margin-top:.4rem;letter-spacing:1px}
+.ws-git{display:flex;align-items:center;justify-content:center;gap:.6rem;margin:1.5rem auto 0;
+  padding:.5rem 1.2rem;border:1px dashed var(--border);border-radius:8px;width:fit-content;transition:border-color .3s}
+.ws-git:hover{border-color:var(--green)}
+.ws-git-label{font-family:var(--font-mono);font-size:.58rem;color:var(--green);letter-spacing:1.5px;font-weight:500;margin-right:.3rem}
+.ws-git span{font-family:var(--font-mono);font-size:.62rem;color:var(--text-dim)}
+.ws-git .ws-arr{color:var(--text-dim);font-size:.55rem}
+.ws-git .ws-ok{color:var(--green)}.ws-git .ws-fail{color:var(--red)}
+@media(max-width:768px){
+  .ws-flow{gap:.6rem}
+  .ws-pipe{width:30px}
+  .ws-node-s{min-width:90px;padding:.7rem .5rem}
+  .ws-git{flex-wrap:wrap;gap:.4rem;padding:.4rem .8rem}
+}
 </style>
 </head>
 <body>
@@ -397,7 +426,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
       </div>
 
       <div class="hero-metrics fade-up" data-delay="4">
-        <div class="hero-metric"><div class="val" data-target="394">0</div><div class="lbl">Tests Passing</div></div>
+        <div class="hero-metric"><div class="val" data-target="406">0</div><div class="lbl">Tests Passing</div></div>
         <div class="hero-metric"><div class="val" data-target="15">0</div><div class="lbl">Core Modules</div></div>
         <div class="hero-metric"><div class="val" data-target="5">0</div><div class="lbl">Pipeline Layers</div></div>
       </div>
@@ -517,6 +546,46 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
       <div class="p3-card"><div class="tag">Session Lane</div><h4>Per-Key 자원 직렬화</h4><p>SyncSessionLane이 동일 키 동시 접근 직렬화. 메타 Lock + 개별 Lock 2계층.</p></div>
       <div class="p3-card"><div class="tag">Jitter Backoff</div><h4>Decorrelated Jitter</h4><p>AWS 권장 알고리즘으로 Thundering Herd를 Jitter로 분산.</p></div>
       <div class="p3-card"><div class="tag">Super-Graph</div><h4>계층적 그래프 패턴</h4><p>OrchestratorGraph가 SelfHealingGraph를 블랙박스 워커로 소비. Additive-Only 설계.</p></div>
+      <div class="p3-card"><div class="tag">Workspace</div><h4>CWD Volume Mount</h4><p>호스트 CWD를 /workspace에 rw 자동 마운트. 로컬 파일 경로가 1:1로 매핑되어 에이전트가 기존 파일을 읽고 수정할 수 있습니다.</p></div>
+      <div class="p3-card"><div class="tag">Scanner</div><h4>Workspace Context Scan</h4><p>_scan_workspace()가 프로젝트 루트를 재귀 탐색(깊이 3, 최대 80개)하여 Planner에게 파일 목록을 주입합니다.</p></div>
+      <div class="p3-card"><div class="tag">Git Safety</div><h4>Stash-Based Snapshot</h4><p>실행 전 git stash 스냅샷, 성공 시 git diff 표시, 실패 시 자동 복원. 자율 에이전트의 안전망입니다.</p></div>
+    </div>
+
+    <!-- Workspace Mount Flow -->
+    <div class="ws-flow fade-up" style="margin-top:2.5rem">
+      <div class="ws-node-s">
+        <div class="ws-ic" style="color:var(--blue)">D:\</div>
+        <div class="ws-nm">Host CWD</div>
+        <div class="ws-ds">프로젝트 루트</div>
+      </div>
+      <div class="ws-pipe">
+        <div class="ws-pipe-line"></div>
+        <div class="ws-pipe-dot"></div>
+        <div class="ws-pipe-tag">rw mount</div>
+      </div>
+      <div class="ws-node-s ws-hl">
+        <div class="ws-ic" style="color:var(--amber)">/ws</div>
+        <div class="ws-nm">/workspace</div>
+        <div class="ws-ds">Docker 컨테이너</div>
+      </div>
+      <div class="ws-pipe">
+        <div class="ws-pipe-line"></div>
+        <div class="ws-pipe-dot" style="animation-delay:.7s"></div>
+        <div class="ws-pipe-tag">scan</div>
+      </div>
+      <div class="ws-node-s">
+        <div class="ws-ic" style="color:var(--green)">AI</div>
+        <div class="ws-nm">Planner</div>
+        <div class="ws-ds">컨텍스트 주입</div>
+      </div>
+    </div>
+    <div class="ws-git fade-up">
+      <div class="ws-git-label">GIT SAFETY</div>
+      <span>stash</span><span class="ws-arr">&#10140;</span>
+      <span>execute</span><span class="ws-arr">&#10140;</span>
+      <span class="ws-ok">diff</span>
+      <span style="color:var(--text-dim)">|</span>
+      <span class="ws-fail">restore</span>
     </div>
   </div>
 </section>
@@ -622,6 +691,10 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
         <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T14</span><span class="tl-name">Production Entrypoint & DI Root</span><span class="tl-count">&#9733;</span><span class="tl-chevron">&#9654;</span></div>
         <div class="tl-body"><div class="tl-body-inner"><p>모든 프로덕션 컴포넌트를 하나의 DI Root(main.py)에서 조립하는 최종 엔트리포인트. AnthropicProvider, DockerRuntime, ToolRegistry, SemanticLoopDetector, TelemetryManager, HITLInterceptor를 실체화하고 OrchestratorGraph에 주입합니다. argparse로 --goal, --auto-approve, --max-tokens 등을 지원하며, 단일 실행 모드와 인터랙티브 REPL 모드를 모두 제공합니다.</p></div></div>
       </div>
+      <div class="tl-item" data-code='<span class="cm"># config.py — CWD를 기본 workspace로</span>\nworkspace_dir: str = os.<span class="fn">getenv</span>(<span class="str">"SANDBOX_WORKSPACE_DIR"</span>, <span class="str">"."</span>)\n\n<span class="cm"># orchestrator.py — 프로젝트 파일 스캔</span>\n<span class="kw">def</span> <span class="fn">_scan_workspace</span>(self) -> str:\n    root = Path(self._config.workspace_dir).<span class="fn">resolve</span>()\n    entries = <span class="fn">sorted</span>(str(p.<span class="fn">relative_to</span>(root)) <span class="kw">for</span> p <span class="kw">in</span> root.<span class="fn">rglob</span>(<span class="str">"*"</span>))\n    <span class="kw">return</span> <span class="str">"\\n"</span>.<span class="fn">join</span>(entries[:<span class="nm">80</span>])\n\n<span class="cm"># cli.py — Git stash 안전망</span>\n<span class="kw">def</span> <span class="fn">_git_snapshot</span>():\n    subprocess.<span class="fn">run</span>([<span class="str">"git"</span>, <span class="str">"stash"</span>, <span class="str">"push"</span>,\n        <span class="str">"-m"</span>, <span class="str">"kappa-sandbox-snapshot"</span>])' data-file="config.py + orchestrator.py + cli.py">
+        <div class="tl-header" onclick="toggleTl(this)"><span class="tl-dot"></span><span class="tl-tag">T15</span><span class="tl-name">CWD Workspace Mount & Git Safety</span><span class="tl-count">1 &#10003;</span><span class="tl-chevron">&#9654;</span></div>
+        <div class="tl-body"><div class="tl-body-inner"><p>호스트 CWD를 Docker 컨테이너 /workspace에 read-write 마운트하여 로컬 파일 경로가 1:1로 매핑됩니다. _scan_workspace()가 프로젝트 파일을 재귀 탐색(깊이 3, 최대 80항목)하여 Planner에게 파일 컨텍스트를 주입하고, Worker 프롬프트에도 경로 매핑을 안내합니다. Git stash 기반 안전망이 실행 전 스냅샷을 생성하고, 성공 시 diff를 표시하며, 실패 시 자동 복원합니다.</p></div></div>
+      </div>
     </div>
   </div>
 </section>
@@ -634,18 +707,18 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     <p class="sec-desc fade-up" data-delay="2">각 모듈은 독립 프로토콜 기반으로 설계되어 테스트 시 Mock으로 완전 교체 가능합니다.</p>
     <div class="bento">
       <div class="b-card b-wide fade-up"><div class="b-icon amber">$</div><h3>kappa.budget</h3><p><strong>BudgetTracker</strong> — 스레드 안전 토큰/비용 추적. RLock 기반.<br><strong>BudgetGate</strong> — LLM 호출 래퍼. pre_check → call → record_usage.<br><strong>LLMProvider</strong> — Protocol. AnthropicProvider 구현체 제공.</p></div>
-      <div class="b-card fade-up" data-delay="1"><div class="b-icon blue">S</div><h3>kappa.sandbox</h3><p><strong>SandboxExecutor</strong> — 코드 → Docker 컨테이너 실행.<br><strong>ContainerRuntime</strong> — Protocol. DockerRuntime.<br><strong>SandboxResult</strong> — exit_code, stdout, stderr.</p></div>
+      <div class="b-card fade-up" data-delay="1"><div class="b-icon blue">S</div><h3>kappa.sandbox</h3><p><strong>SandboxExecutor</strong> — 코드 → Docker 컨테이너 실행. CWD 자동 마운트.<br><strong>ContainerRuntime</strong> — Protocol. DockerRuntime.<br><strong>SandboxConfig</strong> — workspace_dir 기본값 CWD(.).</p></div>
       <div class="b-card b-wide fade-up" data-delay="2"><div class="b-icon dim">G</div><h3>kappa.graph</h3><p><strong>SelfHealingGraph V2</strong> — 5-node LangGraph StateGraph. &lt;action&gt;/&lt;tool_call&gt; 분기 파서.<br><strong>AgentState</strong> — TypedDict + tool_calls, memory_context.</p></div>
       <div class="b-card fade-up" data-delay="3"><div class="b-icon green">M</div><h3>kappa.memory</h3><p><strong>VFSManager</strong> — 격리 작업공간 파일 시스템.<br><strong>Path Traversal</strong> — ../ 공격 원천 차단.</p></div>
       <div class="b-card fade-up"><div class="b-icon blue">T</div><h3>kappa.tools</h3><p><strong>ToolRegistry</strong> — 도구 등록/디스패치 + 예산 연동.<br><strong>BaseTool</strong> — Protocol. 플러그 앤 플레이.</p></div>
       <div class="b-card fade-up" data-delay="1"><div class="b-icon dim">D</div><h3>kappa.defense</h3><p><strong>SemanticLoopDetector</strong> — Jaccard 유사도 감지기.<br><strong>SemanticLoopException</strong> — 조기 차단 예외.</p></div>
       <div class="b-card fade-up" data-delay="2"><div class="b-icon green">I</div><h3>kappa.infra</h3><p><strong>SyncSessionLane</strong> — Per-key Lock 자원 직렬화.<br><strong>jitter_backoff</strong> — Decorrelated Jitter 백오프.</p></div>
-      <div class="b-card b-wide fade-up" data-delay="3"><div class="b-icon indigo">O</div><h3>kappa.graph.orchestrator</h3><p><strong>OrchestratorGraph</strong> — LangGraph Super-Graph 오케스트레이터. Planner/Reviewer — LLM 기반 DAG 분해 & Quality Gate.<br><strong>SubTask</strong> — TypedDict DAG 노드, 병렬 디스패치.</p></div>
+      <div class="b-card b-wide fade-up" data-delay="3"><div class="b-icon indigo">O</div><h3>kappa.graph.orchestrator</h3><p><strong>OrchestratorGraph</strong> — LangGraph Super-Graph 오케스트레이터. Planner/Reviewer — LLM 기반 DAG 분해 & Quality Gate.<br><strong>_scan_workspace</strong> — 재귀 파일 탐색, Planner 컨텍스트 주입.<br><strong>SubTask</strong> — TypedDict DAG 노드, 병렬 디스패치.</p></div>
       <div class="b-card fade-up" data-delay="4"><div class="b-icon amber">R</div><h3>kappa.telemetry</h3><p><strong>TelemetryManager</strong> — JSONL 궤적 기록기.<br><strong>TrajectoryRecord</strong> — think/critique/score.<br><strong>summary()</strong> — 집계 통계.</p></div>
       <div class="b-card b-wide fade-up"><div class="b-icon indigo">M</div><h3>kappa.tools.mcp</h3><p><strong>MCPBridge</strong> — 외부 MCP 서버 연결/탐색/호출. JSON-RPC 2.0 프로토콜.<br><strong>MCPToolAdapter</strong> — MCP 도구를 BaseTool로 래핑. mcp:서버:도구 네임스페이스.<br><strong>MCPTransport</strong> — Protocol. stdio/SSE 교체 가능.</p></div>
       <div class="b-card fade-up" data-delay="1"><div class="b-icon green">K</div><h3>kappa.rag</h3><p><strong>RAGManager</strong> — 청킹/임베딩/인덱싱 파이프라인.<br><strong>KnowledgeSearchTool</strong> — BaseTool 준수 검색 도구.<br><strong>InMemoryVectorStore</strong> — 코사인 유사도.</p></div>
       <div class="b-card fade-up" data-delay="2"><div class="b-icon amber">H</div><h3>kappa.hitl</h3><p><strong>HITLPolicy</strong> — 예산/파괴적 명령/재시도 3종 트리거.<br><strong>HITLInterceptor</strong> — 콜백 기반 승인 개입.<br><strong>ApprovalPrompt</strong> — Protocol. 감사 추적.</p></div>
-      <div class="b-card fade-up" data-delay="3"><div class="b-icon blue">C</div><h3>kappa.cli</h3><p><strong>Rich Live Dashboard</strong> — Plan Table, Activity Log.<br><strong>Budget Gauge</strong> — 실시간 토큰/비용 표시.<br><strong>HITL Prompt</strong> — [Y/N] 승인 대화.</p></div>
+      <div class="b-card fade-up" data-delay="3"><div class="b-icon blue">C</div><h3>kappa.cli</h3><p><strong>Rich Live Dashboard</strong> — Plan Table, Activity Log.<br><strong>Git Safety</strong> — stash 스냅샷/복원/diff 안전망.<br><strong>HITL Prompt</strong> — [Y/N] 승인 대화.</p></div>
     </div>
 
     <div class="dep-block fade-up">
@@ -675,6 +748,11 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
 <span class="fn">main.py</span>           ← <span class="fn">build_orchestrator</span>() DI Root
                      모든 실체 컴포넌트를 조립 → <span class="fn">run_dashboard</span>()
 
+<span class="cm"># Phase 5.5: 자율 워크스페이스 — CWD 마운트 + Git 안전망</span>
+<span class="fn">SandboxConfig</span>     ← workspace_dir 기본값 <span class="str">"."</span> (CWD)
+<span class="fn">_scan_workspace</span>   ← <span class="fn">OrchestratorGraph</span>._planner_node 컨텍스트 주입
+<span class="fn">_git_snapshot</span>     ← <span class="fn">cli.py</span> REPL git stash 안전망
+
 <span class="cm"># 통합: 15개 모듈이 계층적 Super-Graph + 프로덕션 엔트리포인트로 동작</span>
 <span class="fn">python -m kappa.main</span> <span class="str">--goal "..."</span> → <span class="kw">SUCCESS</span> | <span class="kw">FAILED</span></pre>
       </div>
@@ -692,7 +770,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     <div class="test-phase-label fade-up">Phase 1</div>
     <div class="test-rings fade-up">
       <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="9">0</div><div class="ring-label">Budget Gate</div></div>
-      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="18">0</div><div class="ring-label">Sandbox (Unit)</div></div>
+      <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="19">0</div><div class="ring-label">Sandbox (Unit)</div></div>
       <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="10">0</div><div class="ring-label">Sandbox (Docker)</div></div>
       <div class="ring-item"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fill amber" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7" data-ring="326.7"/></svg><div class="ring-val" data-target="17">0</div><div class="ring-label">Self-Healing</div></div>
     </div>
@@ -719,7 +797,7 @@ footer p{text-align:center;font-size:.72rem;color:var(--text-dim)}
     </div>
 
     <div class="test-total fade-up">
-      <div class="big"><em>405</em> / 405</div>
+      <div class="big"><em>406</em> / 406</div>
       <div class="sub">All Tests Passing</div>
     </div>
   </div>
@@ -774,10 +852,13 @@ document.querySelectorAll('.test-rings').forEach(function(el){rObs.observe(el)})
     {t:'kappa --version',c:'cmd'},{t:'v0.5.0 (Phase 5: Production Launch)',c:'out'},
     {t:'',c:''},{t:'kappa status',c:'cmd'},
     {t:'┌──────────────────────────────────────────┐',c:'out'},
-    {t:'│  Modules: 15 loaded   Tests: 405 passed  │',c:'out'},
+    {t:'│  Modules: 15 loaded   Tests: 406 passed  │',c:'out'},
     {t:'│  MCP: 3 tools   RAG: ready   HITL: on    │',c:'out'},
+    {t:'│  Workspace: CWD mount   Git safe: on     │',c:'out'},
     {t:'└──────────────────────────────────────────┘',c:'out'},
     {t:'',c:''},{t:'kappa run "Build a REST API"',c:'cmd'},
+    {t:'[workspace] Scanning CWD → 23 files mapped',c:'step'},
+    {t:'[git] Snapshot created (stash@{0})',c:'step'},
     {t:'[planner] Decomposing goal → 3 subtasks',c:'step'},
     {t:'[hitl] task-001 auto-approved',c:'step'},
     {t:'[dispatch] Spawning 3 workers...',c:'step'},
@@ -786,6 +867,7 @@ document.querySelectorAll('.test-rings').forEach(function(el){rObs.observe(el)})
     {t:'[worker-3] mcp:github:search → RAG inject ✓',c:'ok'},
     {t:'[reviewer] Quality Gate: APPROVED',c:'ok'},
     {t:'[finalize] Merging results → output ready',c:'ok'},
+    {t:'[git] 3 files changed, +47 -12',c:'ok'},
     {t:'',c:''},{t:'✓ Orchestration complete (3/3 tasks passed)',c:'done'},
   ];
   var body=document.getElementById('term-body');
@@ -914,7 +996,7 @@ function toggleTl(hdr){
 
 /* ── Marquee ───────────────────────────────────────────── */
 (function(){
-  var items=['Python 3.11+','LangGraph','Docker','pytest','Anthropic','MCP Protocol','RAG Pipeline','Rich CLI','HITL','TypedDict','asyncio','ThreadPoolExecutor','JSONL','StateGraph'];
+  var items=['Python 3.11+','LangGraph','Docker','pytest','Anthropic','MCP Protocol','RAG Pipeline','Rich CLI','HITL','Workspace Mount','Git Safety','TypedDict','asyncio','ThreadPoolExecutor','JSONL','StateGraph'];
   var m=document.getElementById('marquee');
   var html=items.map(function(s){return'<span>'+s+'</span>'}).join('');
   m.innerHTML=html+html; // duplicate for seamless loop

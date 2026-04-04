@@ -253,13 +253,24 @@ class TestSandboxExecutor:
         assert mount["mode"] == "rw"
 
     def test_no_workspace_dir_no_volumes(self):
-        """Default config (no workspace_dir) produces volumes=None."""
+        """Explicit workspace_dir=None produces volumes=None."""
+        config = SandboxConfig(workspace_dir=None)
+        runtime = FakeRuntime(exit_code=0, stdout="", stderr="")
+        executor = SandboxExecutor(runtime=runtime, config=config)
+
+        executor.execute("pass")
+
+        assert runtime.calls[0]["volumes"] is None
+
+    def test_default_workspace_dir_is_cwd(self):
+        """Default config uses CWD as workspace_dir."""
         runtime = FakeRuntime(exit_code=0, stdout="", stderr="")
         executor = SandboxExecutor(runtime=runtime)
 
         executor.execute("pass")
 
-        assert runtime.calls[0]["volumes"] is None
+        call = runtime.calls[0]
+        assert call["volumes"] is not None
 
     def test_workspace_dir_creates_directory(self, tmp_path):
         """workspace_dir is created if it doesn't exist."""

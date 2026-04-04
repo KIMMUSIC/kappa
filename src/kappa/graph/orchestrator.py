@@ -59,6 +59,7 @@ Rules:
 - Independent tasks have empty depends_on (they can run in parallel).
 - Generate between 2 and {max_subtasks} subtasks.
 - Each subtask goal must be self-contained and precise.
+- When the goal references modifying existing files, subtasks MUST read \nthe existing file from /workspace/ first, then write the updated version back.
 
 Output ONLY valid JSON (no markdown, no commentary):
 {{"tasks": [{{"id": "task-001", "goal": "...", "depends_on": []}}]}}
@@ -187,6 +188,97 @@ class OrchestratorGraph:
         self._approval_callback = approval_callback
         self._app = self._build()
 
+    # ── Workspace helpers ────────────────────────────────────────────────────
+
+    _SCAN_EXCLUDES = {
+        ".git", "__pycache__", "node_modules", ".venv", "venv",
+        ".mypy_cache", ".pytest_cache", ".tox", ".eggs",
+        ".kappa_telemetry", ".kappa_workspace",
+    }
+    _SCAN_EXCLUDE_FILES = {".env", ".env.local", ".env.production"}
+    _SCAN_MAX_DEPTH = 3
+    _SCAN_MAX_ENTRIES = 80
+
+    def _scan_workspace(self) -> str:
+        """Recursively scan workspace and return file listing for planner context."""
+        ws_dir = self._sandbox.config.workspace_dir
+        if not ws_dir:
+            return ""
+        ws_path = Path(ws_dir).resolve()
+        if not ws_path.exists():
+            return ""
+
+        entries: list[str] = []
+
+        def _walk(directory: Path, prefix: str, depth: int) -> None:
+            if depth > self._SCAN_MAX_DEPTH:
+                return
+            if len(entries) >= self._SCAN_MAX_ENTRIES:
+                return
+            try:
+                children = sorted(directory.iterdir())
+            except PermissionError:
+                return
+            for child in children:
+                if len(entries) >= self._SCAN_MAX_ENTRIES:
+                    return
+                name = child.name
+                rel = f"{prefix}{name}" if prefix else name
+                if child.is_dir():
+                    if name in self._SCAN_EXCLUDES:
+                        continue
+                    entries.append(f"  {rel}/")
+                    _walk(child, f"{rel}/", depth + 1)
+                elif child.is_file():
+                    if name in self._SCAN_EXCLUDE_FILES:
+                        continue
+                    size = child.stat().st_size
+                    if size < 1024:
+                        size_str = f"{size} B"
+                    else:
+                        size_str = f"{size / 1024:.1f} KB"
+                    entries.append(f"  {rel} ({size_str})")
+
+        _walk(ws_path, "", 0)
+        if not entries:
+            return ""
+
+        truncated = ""
+        if len(entries) >= self._SCAN_MAX_ENTRIES:
+            truncated = "\n  ... (truncated at " + str(self._SCAN_MAX_ENTRIES) + " entries)"
+
+        return (
+            "\n\nProject files visible at /workspace/:\n"
+            + "\n".join(entries)
+            + truncated
+            + "\n"
+        )
+
+    @staticmethod
+    def _extract_workspace_paths(goal: str, ws_root: Path) -> list[Path]:
+        """Return existing files under ws_root whose names appear in goal."""
+        candidates = re.findall(r"[\w./\-]+\.[\w]+", goal)
+        found: list[Path] = []
+        seen: set[str] = set()
+        for c in candidates:
+            c = c.replace("\\", "/").strip("/")
+            if c.startswith("workspace/"):
+                c = c[len("workspace/"):]
+            if c in seen:
+                continue
+            seen.add(c)
+            target = ws_root / c
+            if target.is_file():
+                found.append(target)
+            else:
+                name = Path(c).name
+                for f in ws_root.rglob(name):
+                    if f.is_file() and str(f) not in seen:
+                        seen.add(str(f))
+                        found.append(f)
+                        break
+        return found
+
     # ── LLM helpers ─────────────────────────────────────────────────
 
     def _llm_call(self, prompt: str, model: str | None = None) -> str:
@@ -282,6 +374,7 @@ class OrchestratorGraph:
         prompt = PLANNER_PROMPT.format(
             goal=state["main_goal"],
             max_subtasks=self._orch_config.max_subtasks,
+            workspace_context=self._scan_workspace(),
         )
 
         plan_critique = state.get("plan_critique", "")

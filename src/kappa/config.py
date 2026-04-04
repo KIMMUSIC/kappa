@@ -29,7 +29,7 @@ class SandboxConfig:
     memory_limit_mb: int = int(os.getenv("SANDBOX_MEMORY_LIMIT_MB", "256"))
     network_enabled: bool = False
     docker_image: str = "python:3.11-slim"
-    workspace_dir: str | None = os.getenv("SANDBOX_WORKSPACE_DIR", None)
+    workspace_dir: str | None = os.getenv("SANDBOX_WORKSPACE_DIR", ".")
     container_workspace_path: str = "/workspace"
 
 

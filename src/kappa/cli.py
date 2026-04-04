@@ -14,6 +14,7 @@ Usage::
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from collections import deque
 from dataclasses import dataclass, field
@@ -280,6 +281,64 @@ def rich_approval_prompt(
     return "approve" if answer.lower() == "y" else "deny"
 
 
+# ── Git Safety ────────────────────────────────────────────────────────────
+
+
+def _git_snapshot() -> str | None:
+    """Create a lightweight git snapshot before sandbox execution."""
+    try:
+        subprocess.run(
+            ["git", "rev-parse", "--git-dir"],
+            capture_output=True, check=True,
+        )
+        result = subprocess.run(
+            ["git", "stash", "push", "-u", "-m", "kappa-sandbox-snapshot"],
+            capture_output=True, text=True,
+        )
+        if "No local changes" in result.stdout:
+            return None
+        return "kappa-sandbox-snapshot"
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+
+
+def _git_restore(console: Console) -> None:
+    """Pop the kappa snapshot stash to restore pre-execution state."""
+    try:
+        result = subprocess.run(
+            ["git", "stash", "list"], capture_output=True, text=True,
+        )
+        for line in result.stdout.splitlines():
+            if "kappa-sandbox-snapshot" in line:
+                ref = line.split(":")[0]
+                subprocess.run(
+                    ["git", "stash", "pop", ref],
+                    capture_output=True, check=True,
+                )
+                console.print("[yellow]Git snapshot restored.[/]")
+                return
+    except Exception:
+        console.print("[red]Failed to restore git snapshot.[/]")
+
+
+def _git_show_diff(console: Console) -> None:
+    """Show a summary of changes made by the sandbox execution."""
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--stat"],
+            capture_output=True, text=True,
+        )
+        if result.stdout.strip():
+            console.print(
+                Panel(
+                    result.stdout.strip(),
+                    title="[bold cyan]Changes by Sandbox[/]",
+                    border_style="cyan",
+                )
+            )
+    except Exception:
+        pass
+
 # ── Main CLI Entry Point ───────────────────────────────────────
 
 
@@ -431,6 +490,11 @@ def main() -> None:
             console.print("[dim]Bye.[/]")
             break
 
+        # Git safety snapshot
+        snapshot = _git_snapshot()
+        if snapshot:
+            console.print("[dim]Git snapshot created.[/]")
+
         try:
             final = run_dashboard(
                 orchestrator,
@@ -449,6 +513,7 @@ def main() -> None:
                         border_style="green",
                     )
                 )
+                _git_show_diff(console)
             else:
                 console.print(
                     Panel(
@@ -457,6 +522,14 @@ def main() -> None:
                         border_style="red",
                     )
                 )
+                if snapshot:
+                    answer = Prompt.ask(
+                        "[yellow]Restore files to pre-execution state?[/]",
+                        choices=["y", "n"],
+                        default="y",
+                    )
+                    if answer.lower() == "y":
+                        _git_restore(console)
             console.print()
 
         except BudgetExceededException as e:

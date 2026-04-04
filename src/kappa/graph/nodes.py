@@ -178,9 +178,10 @@ def build_messages(state: AgentState) -> list[dict]:
     prompt = SYSTEM_PROMPT
     if workspace_path:
         prompt += (
-            f"\n- All output files MUST be written under the {workspace_path} directory."
-            f"\n- Example: open('{workspace_path}/output.html', 'w') instead of open('output.html', 'w')."
-            f"\n- The {workspace_path} directory is persisted — files written there survive after execution."
+            f"\n- {workspace_path} is the user's project root (read-write)."
+            f"\n- Local file paths map 1:1: e.g. 'src/foo.py' → '{workspace_path}/src/foo.py'."
+            f"\n- To modify existing files: read from {workspace_path}/..., modify, write back."
+            f"\n- To create new files: write to the appropriate path under {workspace_path}/."
             f"\n- Files written outside {workspace_path} will be lost when the container is destroyed."
         )
     if memory_context:
