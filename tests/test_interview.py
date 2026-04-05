@@ -49,24 +49,38 @@ class TestRunInterview:
         )
         return gate
 
-    def test_empty_gaps_returns_original_goal(self):
-        """No gaps → no questions → original goal returned."""
+    @patch("kappa.graph.interview.Prompt.ask")
+    def test_empty_gaps_generates_questions_via_llm(self, mock_ask):
+        """No pre-generated gaps → LLM generates questions → interview proceeds."""
+        mock_ask.return_value = "Use PostgreSQL"
         console = MagicMock()
-        gate = self._make_gate("synthesized")
+        gate = MagicMock()
+        # First call: generate questions, second call: synthesize golden goal
+        gate.call.side_effect = [
+            LLMResponse(
+                content='["What database?", "What framework?"]',
+                prompt_tokens=10, completion_tokens=20,
+                model="test", stop_reason="end_turn",
+            ),
+            LLMResponse(
+                content="Build a dashboard with PostgreSQL",
+                prompt_tokens=10, completion_tokens=20,
+                model="test", stop_reason="end_turn",
+            ),
+        ]
 
         result = run_interview(
             console=console,
-            goal="Clear goal",
+            goal="Build a dashboard",
             gaps=[],
             max_questions=5,
             gate=gate,
             model="test-model",
         )
 
-        assert result["golden_goal"] == "Clear goal"
-        assert result["qa_pairs"] == []
-        assert result["original_goal"] == "Clear goal"
-        gate.call.assert_not_called()
+        assert result["golden_goal"] == "Build a dashboard with PostgreSQL"
+        assert len(result["qa_pairs"]) == 2
+        assert gate.call.call_count == 2  # generate questions + synthesize
 
     @patch("kappa.graph.interview.Prompt.ask")
     def test_single_gap_single_question(self, mock_ask):

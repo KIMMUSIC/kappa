@@ -520,7 +520,13 @@ def run_dashboard(
                             "interview_result": dict(result),
                             "global_status": "planning",
                         })
-                    except (KeyboardInterrupt, Exception):
+                    except KeyboardInterrupt:
+                        console.print("[dim]Interview interrupted.[/]")
+                        orchestrator.update_state(config, {
+                            "global_status": "failed",
+                        })
+                    except Exception as e:
+                        console.print(f"[red]Interview error: {e}[/]")
                         orchestrator.update_state(config, {
                             "global_status": "failed",
                         })

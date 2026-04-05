@@ -90,6 +90,32 @@ def run_interview(
     """
     questions = gaps[:max_questions]
     if not questions:
+        # No pre-generated gaps — ask LLM to generate interview questions
+        gen_prompt = (
+            f"The user wants: \"{goal}\"\n"
+            f"This goal is vague. Generate {max_questions} specific questions "
+            f"to clarify the requirements. Output ONLY a JSON array of question strings."
+        )
+        try:
+            gen_resp = gate.call(
+                messages=[{"role": "user", "content": gen_prompt}],
+                model=model,
+            )
+            raw = gen_resp.content.strip()
+            if raw.startswith("```"):
+                raw = "\n".join(l for l in raw.split("\n") if not l.strip().startswith("```"))
+            import json as _json
+            parsed = _json.loads(raw)
+            if isinstance(parsed, list):
+                questions = [str(q) for q in parsed[:max_questions]]
+        except Exception:
+            # Fallback: generic questions
+            questions = [
+                "구체적으로 어떤 기능이 필요한가요?",
+                "어떤 기술 스택이나 프레임워크를 사용해야 하나요?",
+                "결과물의 형태는 무엇인가요? (CLI, 웹, 스크립트 등)",
+            ][:max_questions]
+    if not questions:
         return InterviewResult(
             golden_goal=goal,
             qa_pairs=[],
