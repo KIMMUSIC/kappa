@@ -280,7 +280,7 @@ class TestRunDashboard:
         from kappa.cli import run_dashboard
 
         class FakeOrchestrator:
-            def stream(self, goal):
+            def stream(self, goal, config=None):
                 yield {"planner": {
                     "plan": [
                         {"id": "task-001", "goal": "Do thing", "status": "pending",
@@ -320,7 +320,7 @@ class TestRunDashboard:
         from kappa.cli import run_dashboard
 
         class FailingOrchestrator:
-            def stream(self, goal):
+            def stream(self, goal, config=None):
                 yield {"planner": {
                     "plan": [],
                     "global_status": "failed",

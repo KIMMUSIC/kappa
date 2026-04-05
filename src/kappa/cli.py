@@ -28,6 +28,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
 from rich.text import Text
+from typing import Any
 
 from kappa.budget.gate import BudgetGate
 from kappa.budget.tracker import BudgetTracker
@@ -118,6 +119,26 @@ class DashboardState:
                 f"[bold green]done[/]"
             )
 
+        elif node == "meta_prompter":
+            score = state_update.get("ambiguity_score", 0)
+            strategy = state_update.get("meta_strategy", "")
+            self.activity.append(
+                f"[dim]{now}[/] [magenta]META[/] Ambiguity: "
+                f"{score:.0%} | Strategy: {strategy}"
+            )
+
+        elif node == "interview":
+            self.activity.append(
+                f"[dim]{now}[/] [yellow]INTERVIEW[/] "
+                f"Awaiting user input..."
+            )
+
+        elif node == "plan_approval":
+            self.activity.append(
+                f"[dim]{now}[/] [yellow]APPROVAL[/] "
+                f"Awaiting plan approval..."
+            )
+
         elif node == "failed":
             self.activity.append(
                 f"[dim]{now}[/] [red]FAILED[/] Orchestration terminated"
@@ -136,7 +157,11 @@ def build_header(state: DashboardState) -> Panel:
     """Top panel: goal + global status."""
     status_color = {
         "idle": "dim",
+        "meta_prompting": "magenta",
+        "awaiting_interview": "yellow",
+        "awaiting_plan_approval": "yellow",
         "planning": "cyan",
+        "plan_review": "cyan",
         "dispatching": "blue",
         "reviewing": "yellow",
         "done": "green",
@@ -369,14 +394,68 @@ def create_hitl_interceptor(
     )
 
 
+def show_plan_approval(
+    console: Console,
+    plan: list[dict[str, Any]],
+    goal: str,
+) -> tuple[str, str]:
+    """Display plan and collect user approval decision.
+
+    Called from ``run_dashboard`` when the graph emits
+    ``"awaiting_plan_approval"`` sentinel. Must only be called
+    when Rich ``Live`` rendering is paused.
+
+    Returns:
+        (choice, feedback) where choice is "Y", "N", or "M"
+        and feedback is the user's modification request (empty for Y/N).
+    """
+    console.print()
+    table = Table(
+        title="[bold]PLAN APPROVAL[/] 프로젝트 실행 계획서",
+        border_style="cyan",
+        show_lines=True,
+    )
+    table.add_column("ID", style="bold")
+    table.add_column("Task Goal", ratio=3)
+    table.add_column("Depends On", style="dim")
+
+    for task in plan:
+        deps = ", ".join(task.get("depends_on", [])) or "-"
+        table.add_row(task.get("id", "?"), task.get("goal", ""), deps)
+
+    console.print(table)
+    console.print()
+
+    choice = Prompt.ask(
+        "[bold]이 계획을 승인하십니까?[/]",
+        choices=["Y", "N", "M"],
+        default="Y",
+    )
+
+    feedback = ""
+    if choice == "M":
+        feedback = Prompt.ask("[bold]수정 요청 내용을 입력하세요[/]")
+
+    return choice, feedback
+
+
 def run_dashboard(
     orchestrator: Any,
     goal: str,
     tracker: BudgetTracker | None = None,
     max_tokens: int = 100_000,
     max_cost_usd: float = 5.0,
+    *,
+    meta_config: Any | None = None,
+    gate: Any | None = None,
+    model: str | None = None,
 ) -> DashboardState:
     """Stream orchestrator execution through the Rich dashboard.
+
+    Supports sentinel-based protocol: when the graph emits
+    ``"awaiting_interview"`` or ``"awaiting_plan_approval"``,
+    the Live display pauses, interactive I/O is performed, and
+    the graph resumes from the checkpointed state.
 
     Args:
         orchestrator: ``OrchestratorGraph`` instance.
@@ -384,17 +463,22 @@ def run_dashboard(
         tracker: Optional BudgetTracker for live budget display.
         max_tokens: Budget ceiling for display.
         max_cost_usd: Cost ceiling for display.
+        meta_config: MetaPromptConfig for interview settings.
+        gate: BudgetGate for interview LLM calls.
+        model: LLM model for interview synthesis.
 
     Returns:
         Final ``DashboardState`` after orchestration completes.
     """
     console = Console()
+    config = {"configurable": {"thread_id": f"kappa-{id(orchestrator)}"}}
     state = DashboardState(
         goal=goal,
         global_status="planning",
         budget_max_tokens=max_tokens,
         budget_max_cost_usd=max_cost_usd,
     )
+    accumulated: dict[str, Any] = {}
 
     with Live(
         build_layout(state),
@@ -402,12 +486,69 @@ def run_dashboard(
         refresh_per_second=4,
         transient=False,
     ) as live:
-        for step in orchestrator.stream(goal):
+        stream_iter = orchestrator.stream(goal, config=config)
+
+        while True:
+            try:
+                step = next(stream_iter)
+            except StopIteration:
+                break
+
             for node, update in step.items():
                 state.update_from_step(node, update)
+                accumulated.update(update)
                 if tracker:
                     state.update_budget(tracker)
-                live.update(build_layout(state))
+
+                gs = update.get("global_status", "")
+
+                if gs == "awaiting_interview" and gate and meta_config:
+                    from kappa.graph.interview import run_interview
+
+                    live.stop()
+                    try:
+                        result = run_interview(
+                            console=console,
+                            goal=goal,
+                            gaps=accumulated.get("gaps", []),
+                            max_questions=meta_config.max_interview_questions,
+                            gate=gate,
+                            model=model or "claude-sonnet-4-20250514",
+                        )
+                        orchestrator.update_state(config, {
+                            "enhanced_goal": result["golden_goal"],
+                            "interview_result": dict(result),
+                            "global_status": "planning",
+                        })
+                    except (KeyboardInterrupt, Exception):
+                        orchestrator.update_state(config, {
+                            "global_status": "failed",
+                        })
+                    live.start()
+                    stream_iter = orchestrator.resume_stream(config=config)
+
+                elif gs == "awaiting_plan_approval":
+                    live.stop()
+                    choice, feedback = show_plan_approval(
+                        console=console,
+                        plan=state.plan,
+                        goal=accumulated.get("enhanced_goal", goal),
+                    )
+                    if choice == "Y":
+                        patch = {"global_status": "dispatching", "plan_critique": ""}
+                    elif choice == "N":
+                        patch = {"global_status": "failed"}
+                    else:
+                        patch = {
+                            "global_status": "plan_rejected",
+                            "plan_critique": feedback,
+                            "user_plan_feedback": feedback,
+                        }
+                    orchestrator.update_state(config, patch)
+                    live.start()
+                    stream_iter = orchestrator.resume_stream(config=config)
+
+            live.update(build_layout(state))
 
     return state
 

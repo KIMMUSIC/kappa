@@ -334,11 +334,16 @@ class TestOrchestratorHITLIntegration:
                     stderr=result.stderr,
                 )
 
+        from kappa.config import MetaPromptConfig
+
         return OrchestratorGraph(
             gate=gate,
             sandbox=FakeExecutor(),
             config=AgentConfig(max_self_heal_retries=1),
             orchestrator_config=OrchestratorConfig(max_retries_per_task=3),
+            meta_prompt_config=MetaPromptConfig(
+                skip_interview=True, skip_plan_approval=True,
+            ),
             approval_callback=callback,
         )
 

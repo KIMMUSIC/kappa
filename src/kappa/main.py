@@ -57,6 +57,16 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disable JSONL trajectory recording.",
     )
+    parser.add_argument(
+        "--skip-interview",
+        action="store_true",
+        help="Skip the interview step even if ambiguity is high.",
+    )
+    parser.add_argument(
+        "--skip-plan-approval",
+        action="store_true",
+        help="Skip interactive plan approval (use LLM reviewer instead).",
+    )
     return parser.parse_args()
 
 
@@ -74,6 +84,7 @@ def build_orchestrator(args: argparse.Namespace):
         AgentConfig,
         BudgetConfig,
         MCPConfig,
+        MetaPromptConfig,
         OrchestratorConfig,
         RAGConfig,
         ExecutionConfig,
@@ -110,6 +121,10 @@ def build_orchestrator(args: argparse.Namespace):
     exec_config = ExecutionConfig()
     agent_config = AgentConfig(budget=budget_config, execution=exec_config)
     orch_config = OrchestratorConfig()
+    meta_config = MetaPromptConfig(
+        skip_interview=getattr(args, "skip_interview", False),
+        skip_plan_approval=getattr(args, "skip_plan_approval", False),
+    )
     rag_config = RAGConfig()
     mcp_config = MCPConfig()
     semantic_config = SemanticConfig()
@@ -159,6 +174,8 @@ def build_orchestrator(args: argparse.Namespace):
         sandbox=executor,
         config=agent_config,
         orchestrator_config=orch_config,
+        meta_prompt_config=meta_config,
+        console=console,
         registry=registry,
         detector=detector,
         session_lane=session_lane,
@@ -166,7 +183,7 @@ def build_orchestrator(args: argparse.Namespace):
         approval_callback=interceptor,
     )
 
-    return orchestrator, gate.tracker, budget_config
+    return orchestrator, gate.tracker, budget_config, gate, meta_config
 
 
 # ── Execution Modes ───────────────────────────────────────────────
@@ -177,7 +194,7 @@ def run_single(args: argparse.Namespace) -> None:
     from kappa.cli import run_dashboard
     from kappa.exceptions import BudgetExceededException, ExecutionError
 
-    orchestrator, tracker, budget_config = build_orchestrator(args)
+    orchestrator, tracker, budget_config, gate, meta_config = build_orchestrator(args)
 
     try:
         final = run_dashboard(
@@ -186,6 +203,8 @@ def run_single(args: argparse.Namespace) -> None:
             tracker=tracker,
             max_tokens=budget_config.max_total_tokens,
             max_cost_usd=budget_config.max_cost_usd,
+            meta_config=meta_config,
+            gate=gate,
         )
 
         console.print()
@@ -224,7 +243,7 @@ def run_repl(args: argparse.Namespace) -> None:
     from kappa.cli import run_dashboard
     from kappa.exceptions import BudgetExceededException, ExecutionError
 
-    orchestrator, tracker, budget_config = build_orchestrator(args)
+    orchestrator, tracker, budget_config, gate, meta_config = build_orchestrator(args)
 
     console.print('[dim]Type "quit" to exit.[/]\n')
 

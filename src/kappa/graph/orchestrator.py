@@ -11,9 +11,10 @@ Sub-Graph inside a higher-level Super-Graph.
 
 Flow::
 
-    planner → plan_reviewer ─┬→ dispatcher → [Workers…] → reviewer ─┬→ finalizer → END
-       ↑                     │       ↑                               │
-       └── plan rejected ────┘       └──── rejected (critique) ──────┘
+    meta_prompter ─┬─(high ambiguity)─→ interview ──→ planner → plan_approval ─┬→ dispatcher → ...
+                   └─(low ambiguity)──────────────→ planner → plan_approval ─┤
+                                                       ↑                     │
+                                                       └── plan rejected ────┘
 """
 
 from __future__ import annotations
@@ -25,10 +26,16 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Callable, TypedDict
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
+from rich.console import Console
 
 from kappa.budget.gate import BudgetGate
-from kappa.config import AgentConfig, OrchestratorConfig
+from kappa.config import AgentConfig, MetaPromptConfig, OrchestratorConfig
+from kappa.graph.meta_prompter import (
+    META_PROMPTER_PROMPT,
+    parse_meta_prompt_response,
+)
 from kappa.defense.semantic import SemanticLoopDetector
 from kappa.graph.graph import SelfHealingGraph
 from kappa.infra.session_lane import SyncSessionLane
@@ -131,15 +138,21 @@ class OrchestratorState(TypedDict):
     """State flowing through the orchestrator Super-Graph."""
 
     main_goal: str
+    enhanced_goal: str  # Meta-Prompter output (structured goal)
+    ambiguity_score: float  # 0.0~1.0
+    gaps: list[str]  # Missing info identified by Meta-Prompter
+    meta_strategy: str  # Selected prompting strategy (CoT/ReAct/direct)
+    interview_result: dict | None  # InterviewResult or None
     plan: list[SubTask]
     completed: list[str]
     rejected_count: int
     max_retries_per_task: int
-    global_status: str  # planning | plan_review | dispatching | reviewing | done | failed
+    global_status: str  # meta_prompting | awaiting_interview | awaiting_plan_approval | planning | ...
     final_output: str
     telemetry_records: list[dict]
     plan_critique: str
     plan_attempts: int
+    user_plan_feedback: str  # Plan Approval M(modify) feedback
 
 
 # ── Orchestrator ────────────────────────────────────────────────────
@@ -171,6 +184,8 @@ class OrchestratorGraph:
         sandbox: HostExecutor,
         config: AgentConfig | None = None,
         orchestrator_config: OrchestratorConfig | None = None,
+        meta_prompt_config: MetaPromptConfig | None = None,
+        console: Console | None = None,
         registry: ToolRegistry | None = None,
         detector: SemanticLoopDetector | None = None,
         session_lane: SyncSessionLane | None = None,
@@ -182,6 +197,8 @@ class OrchestratorGraph:
         self._executor = sandbox
         self._config = config or AgentConfig()
         self._orch_config = orchestrator_config or OrchestratorConfig()
+        self._meta_config = meta_prompt_config or MetaPromptConfig()
+        self._console = console or Console()
         self._registry = registry
         self._detector = detector
         self._session_lane = session_lane
@@ -384,11 +401,61 @@ class OrchestratorGraph:
 
     # ── Node implementations ────────────────────────────────────────
 
-    def _planner_node(self, state: OrchestratorState) -> dict:
-        """Decompose *main_goal* into a DAG of SubTasks via LLM."""
-        ws_dir, out_dir = self._resolve_dirs()
-        prompt = PLANNER_PROMPT.format(
+    # ── Phase 6: Meta-Prompting Pipeline nodes ─────────────────────
+
+    def _meta_prompter_node(self, state: OrchestratorState) -> dict:
+        """Analyze user input: gap analysis, structurize, select strategy."""
+        if self._meta_config.skip_interview and self._meta_config.skip_plan_approval:
+            return {
+                "enhanced_goal": state["main_goal"],
+                "ambiguity_score": 0.0,
+                "gaps": [],
+                "meta_strategy": "direct",
+                "global_status": "meta_prompting",
+            }
+
+        prompt = META_PROMPTER_PROMPT.format(
             goal=state["main_goal"],
+            workspace_context=self._scan_workspace(),
+        )
+        raw = self._llm_call(prompt, model=self._orch_config.planner_model)
+        result = parse_meta_prompt_response(raw)
+
+        if result is None:
+            return {
+                "enhanced_goal": state["main_goal"],
+                "ambiguity_score": 0.0,
+                "gaps": [],
+                "meta_strategy": "direct",
+                "global_status": "meta_prompting",
+            }
+
+        return {
+            "enhanced_goal": result["enhanced_goal"],
+            "ambiguity_score": result["ambiguity_score"],
+            "gaps": result.get("gaps", []),
+            "meta_strategy": result.get("strategy", "direct"),
+            "global_status": "meta_prompting",
+        }
+
+    def _interview_node(self, state: OrchestratorState) -> dict:
+        """Sentinel: signal CLI layer to conduct interactive interview."""
+        return {"global_status": "awaiting_interview"}
+
+    def _plan_approval_node(self, state: OrchestratorState) -> dict:
+        """Sentinel: signal CLI layer for plan approval, or LLM fallback."""
+        if self._meta_config.skip_plan_approval:
+            return self._plan_reviewer_node(state)
+        return {"global_status": "awaiting_plan_approval"}
+
+    # ── Core orchestration nodes ───────────────────────────────────
+
+    def _planner_node(self, state: OrchestratorState) -> dict:
+        """Decompose goal into a DAG of SubTasks via LLM."""
+        ws_dir, out_dir = self._resolve_dirs()
+        goal = state.get("enhanced_goal") or state["main_goal"]
+        prompt = PLANNER_PROMPT.format(
+            goal=goal,
             max_subtasks=self._orch_config.max_subtasks,
             workspace_context=self._scan_workspace(),
             workspace_dir=ws_dir,
@@ -684,10 +751,18 @@ class OrchestratorGraph:
 
     # ── Routing ─────────────────────────────────────────────────────
 
+    def _route_after_meta_prompter(self, state: OrchestratorState) -> str:
+        """Route after meta-prompting: interview if ambiguous, else planner."""
+        if self._meta_config.skip_interview:
+            return "planner"
+        if state.get("ambiguity_score", 0.0) > self._meta_config.ambiguity_threshold:
+            return "interview"
+        return "planner"
+
     def _route_after_plan(self, state: OrchestratorState) -> str:
         if state["global_status"] == "failed" or not state["plan"]:
             return "failed"
-        return "plan_reviewer"
+        return "plan_approval"
 
     def _route_after_plan_review(self, state: OrchestratorState) -> str:
         if state["global_status"] == "dispatching":
@@ -713,28 +788,37 @@ class OrchestratorGraph:
     def _build(self):
         graph = StateGraph(OrchestratorState)
 
+        graph.add_node("meta_prompter", self._meta_prompter_node)
+        graph.add_node("interview", self._interview_node)
         graph.add_node("planner", self._planner_node)
-        graph.add_node("plan_reviewer", self._plan_reviewer_node)
+        graph.add_node("plan_approval", self._plan_approval_node)
         graph.add_node("dispatcher", self._dispatcher_node)
         graph.add_node("reviewer", self._reviewer_node)
         graph.add_node("finalizer", self._finalizer_node)
         graph.add_node("failed", self._failed_node)
 
-        graph.set_entry_point("planner")
+        graph.set_entry_point("meta_prompter")
+        graph.add_conditional_edges("meta_prompter", self._route_after_meta_prompter)
+        graph.add_edge("interview", "planner")
         graph.add_conditional_edges("planner", self._route_after_plan)
-        graph.add_conditional_edges("plan_reviewer", self._route_after_plan_review)
+        graph.add_conditional_edges("plan_approval", self._route_after_plan_review)
         graph.add_conditional_edges("dispatcher", self._route_after_dispatch)
         graph.add_conditional_edges("reviewer", self._route_after_review)
         graph.add_edge("finalizer", END)
         graph.add_edge("failed", END)
 
-        return graph.compile()
+        return graph.compile(checkpointer=MemorySaver())
 
     # ── Public API ──────────────────────────────────────────────────
 
     def _initial_state(self, goal: str) -> OrchestratorState:
         return {
             "main_goal": goal,
+            "enhanced_goal": "",
+            "ambiguity_score": 0.0,
+            "gaps": [],
+            "meta_strategy": "",
+            "interview_result": None,
             "plan": [],
             "completed": [],
             "rejected_count": 0,
@@ -744,9 +828,10 @@ class OrchestratorGraph:
             "telemetry_records": [],
             "plan_critique": "",
             "plan_attempts": 0,
+            "user_plan_feedback": "",
         }
 
-    def run(self, goal: str) -> OrchestratorState:
+    def run(self, goal: str, config: dict | None = None) -> OrchestratorState:
         """Execute the orchestrator for a high-level goal.
 
         Returns the final ``OrchestratorState`` with results, telemetry
@@ -755,10 +840,20 @@ class OrchestratorGraph:
         Raises:
             BudgetExceededException: If the shared budget is exhausted.
         """
+        cfg = config or {"configurable": {"thread_id": "default"}}
         state = self._initial_state(goal)
-        return self._app.invoke(state)
+        return self._app.invoke(state, config=cfg)
 
-    def stream(self, goal: str):
-        """Yield ``(node_name, state_update)`` for each orchestrator step."""
+    def stream(self, goal: str, config: dict | None = None):
+        """Yield ``{node_name: state_update}`` for each orchestrator step."""
+        cfg = config or {"configurable": {"thread_id": "default"}}
         state = self._initial_state(goal)
-        yield from self._app.stream(state)
+        yield from self._app.stream(state, config=cfg, stream_mode="updates")
+
+    def update_state(self, config: dict, patch: dict) -> None:
+        """Update graph state via checkpointer (for sentinel protocol)."""
+        self._app.update_state(config, patch)
+
+    def resume_stream(self, config: dict):
+        """Resume graph from checkpointed state after sentinel I/O."""
+        yield from self._app.stream(None, config=config, stream_mode="updates")

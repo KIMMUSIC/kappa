@@ -22,7 +22,9 @@ from unittest.mock import patch
 import pytest
 
 from kappa.budget.gate import BudgetGate, LLMResponse
-from kappa.config import BudgetConfig, OrchestratorConfig, TelemetryConfig
+from kappa.config import BudgetConfig, MetaPromptConfig, OrchestratorConfig, TelemetryConfig
+
+_SKIP_META = MetaPromptConfig(skip_interview=True, skip_plan_approval=True)
 from kappa.graph.orchestrator import OrchestratorGraph
 from kappa.config import ExecutionConfig
 from kappa.sandbox.executor import SandboxResult
@@ -387,7 +389,7 @@ class TestOrchestratorTelemetryIntegration:
         provider = _MockProvider([plan_resp, review_resp])
         gate = BudgetGate(provider=provider, budget_config=BudgetConfig(max_total_tokens=500_000))
         sandbox = _FakeExecutor()
-        orch = OrchestratorGraph(gate=gate, sandbox=sandbox, telemetry=mgr)
+        orch = OrchestratorGraph(gate=gate, sandbox=sandbox, telemetry=mgr, meta_prompt_config=_SKIP_META)
 
         with patch.object(orch, "_execute_subtask", return_value=self._worker_result()):
             result = orch.run("Print hello")
@@ -419,6 +421,7 @@ class TestOrchestratorTelemetryIntegration:
         orch = OrchestratorGraph(
             gate=gate, sandbox=sandbox, telemetry=mgr,
             orchestrator_config=OrchestratorConfig(max_retries_per_task=5),
+            meta_prompt_config=_SKIP_META,
         )
 
         with patch.object(orch, "_execute_subtask", return_value=self._worker_result()):
@@ -460,6 +463,7 @@ class TestOrchestratorTelemetryIntegration:
         orch = OrchestratorGraph(
             gate=gate, sandbox=sandbox, telemetry=mgr,
             orchestrator_config=OrchestratorConfig(max_parallel_workers=1),
+            meta_prompt_config=_SKIP_META,
         )
 
         with patch.object(orch, "_execute_subtask", return_value=self._worker_result()):
@@ -482,7 +486,7 @@ class TestOrchestratorTelemetryIntegration:
         provider = _MockProvider([plan_resp, review_resp])
         gate = BudgetGate(provider=provider, budget_config=BudgetConfig(max_total_tokens=500_000))
         sandbox = _FakeExecutor()
-        orch = OrchestratorGraph(gate=gate, sandbox=sandbox)  # no telemetry
+        orch = OrchestratorGraph(gate=gate, sandbox=sandbox, meta_prompt_config=_SKIP_META)  # no telemetry
 
         with patch.object(orch, "_execute_subtask", return_value=self._worker_result()):
             result = orch.run("Simple goal")

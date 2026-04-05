@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from kappa.budget.gate import BudgetGate, LLMResponse
-from kappa.config import AgentConfig, BudgetConfig, OrchestratorConfig
+from kappa.config import AgentConfig, BudgetConfig, MetaPromptConfig, OrchestratorConfig
 from kappa.graph.orchestrator import (
     OrchestratorGraph,
     OrchestratorState,
@@ -33,6 +33,9 @@ from kappa.graph.orchestrator import (
 )
 from kappa.infra.session_lane import SyncSessionLane
 from kappa.config import ExecutionConfig
+
+# Skip meta-prompting pipeline in legacy tests
+_SKIP_META = MetaPromptConfig(skip_interview=True, skip_plan_approval=True)
 from kappa.sandbox.executor import SandboxResult
 
 
@@ -190,7 +193,7 @@ class TestPlannerNode:
             ("task-002", "Do B", ["task-001"]),
         )
         gate, _ = _make_gate([plan_resp])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
 
         state = orch._initial_state("Build something")
         result = orch._planner_node(state)
@@ -209,6 +212,7 @@ class TestPlannerNode:
             gate=gate,
             sandbox=_make_sandbox(),
             orchestrator_config=OrchestratorConfig(max_subtasks=3),
+            meta_prompt_config=_SKIP_META,
         )
 
         result = orch._planner_node(orch._initial_state("Big goal"))
@@ -216,14 +220,14 @@ class TestPlannerNode:
 
     def test_bad_json_sets_failed(self):
         gate, _ = _make_gate(["This is not JSON"])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
         result = orch._planner_node(orch._initial_state("Goal"))
         assert result["global_status"] == "failed"
         assert result["plan"] == []
 
     def test_missing_tasks_key_sets_failed(self):
         gate, _ = _make_gate(['{"items": []}'])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
         result = orch._planner_node(orch._initial_state("Goal"))
         assert result["global_status"] == "failed"
 
@@ -252,7 +256,7 @@ class TestDispatcherNode:
              "result": None, "critique": "", "attempts": 0},
         ]
         gate, _ = _make_gate([])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
         worker_result = _successful_worker_result("A")
 
         with patch.object(orch, "_execute_subtask", return_value=worker_result):
@@ -270,7 +274,7 @@ class TestDispatcherNode:
              "result": None, "critique": "", "attempts": 0},
         ]
         gate, _ = _make_gate([])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
         worker_result = _successful_worker_result("A")
 
         with patch.object(orch, "_execute_subtask", return_value=worker_result):
@@ -286,7 +290,7 @@ class TestDispatcherNode:
              "result": None, "critique": "", "attempts": 0},
         ]
         gate, _ = _make_gate([])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
         result = orch._dispatcher_node(self._make_state(plan))
         assert result["global_status"] == "failed"
 
@@ -296,7 +300,7 @@ class TestDispatcherNode:
              "result": None, "critique": "", "attempts": 0},
         ]
         gate, _ = _make_gate([])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
 
         with patch.object(
             orch, "_execute_subtask", side_effect=RuntimeError("boom")
@@ -312,7 +316,7 @@ class TestDispatcherNode:
              "result": None, "critique": "Fix it", "attempts": 1},
         ]
         gate, _ = _make_gate([])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
         worker_result = _successful_worker_result("A")
 
         with patch.object(orch, "_execute_subtask", return_value=worker_result) as mock_exec:
@@ -351,7 +355,7 @@ class TestReviewerNode:
         ]
         review_resp = _review_json(approved=True, score=0.95)
         gate, _ = _make_gate([review_resp])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
 
         result = orch._reviewer_node(self._make_state(plan))
 
@@ -366,7 +370,7 @@ class TestReviewerNode:
         ]
         review_resp = _review_json(approved=False, score=0.3, critique="Output wrong")
         gate, _ = _make_gate([review_resp])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
 
         result = orch._reviewer_node(self._make_state(plan))
 
@@ -382,7 +386,7 @@ class TestReviewerNode:
              "result": _successful_worker_result("A"), "critique": "", "attempts": 0},
         ]
         gate, _ = _make_gate(["NOT JSON AT ALL"])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
 
         result = orch._reviewer_node(self._make_state(plan))
 
@@ -397,7 +401,7 @@ class TestReviewerNode:
              "result": None, "critique": "", "attempts": 0},
         ]
         gate, _ = _make_gate([])  # no LLM calls expected
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
 
         result = orch._reviewer_node(self._make_state(plan, completed=["t1"]))
 
@@ -412,7 +416,7 @@ class TestReviewerNode:
         ]
         review_resp = _review_json(approved=True, score=0.88)
         gate, _ = _make_gate([review_resp])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
 
         result = orch._reviewer_node(self._make_state(plan))
 
@@ -431,7 +435,7 @@ class TestReviewerNode:
 class TestRouting:
     def _make_orch(self) -> OrchestratorGraph:
         gate, _ = _make_gate([])
-        return OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        return OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
 
     def test_route_after_plan_success(self):
         orch = self._make_orch()
@@ -440,7 +444,7 @@ class TestRouting:
             "completed": [], "rejected_count": 0, "max_retries_per_task": 3,
             "global_status": "dispatching", "final_output": "", "telemetry_records": [],
         }
-        assert orch._route_after_plan(state) == "plan_reviewer"
+        assert orch._route_after_plan(state) == "plan_approval"
 
     def test_route_after_plan_failure(self):
         orch = self._make_orch()
@@ -509,7 +513,7 @@ class TestFinalizerNode:
             "global_status": "reviewing", "final_output": "", "telemetry_records": [],
         }
         gate, _ = _make_gate([])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
         result = orch._finalizer_node(state)
 
         assert result["global_status"] == "done"
@@ -538,6 +542,7 @@ class TestOrchestratorHappyPath:
             gate=gate,
             sandbox=_make_sandbox(),
             orchestrator_config=OrchestratorConfig(max_parallel_workers=1),
+            meta_prompt_config=_SKIP_META,
         )
 
         worker_result = _successful_worker_result("task")
@@ -559,7 +564,7 @@ class TestOrchestratorHappyPath:
         review_b = _review_json(approved=True, score=0.9)
 
         gate, _ = _make_gate([plan_resp, review_a, review_b])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
 
         execution_order: list[str] = []
 
@@ -579,7 +584,7 @@ class TestOrchestratorHappyPath:
         review = _review_json(approved=True, score=0.9)
 
         gate, _ = _make_gate([plan_resp, review])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
 
         with patch.object(
             orch, "_execute_subtask",
@@ -611,6 +616,7 @@ class TestOrchestratorRejection:
             gate=gate,
             sandbox=_make_sandbox(),
             orchestrator_config=OrchestratorConfig(max_retries_per_task=5),
+            meta_prompt_config=_SKIP_META,
         )
 
         call_count = {"n": 0}
@@ -638,6 +644,7 @@ class TestOrchestratorRejection:
             gate=gate,
             sandbox=_make_sandbox(),
             orchestrator_config=OrchestratorConfig(max_retries_per_task=2),
+            meta_prompt_config=_SKIP_META,
         )
 
         with patch.object(
@@ -658,13 +665,13 @@ class TestOrchestratorRejection:
 class TestOrchestratorFailure:
     def test_planner_bad_json_fails(self):
         gate, _ = _make_gate(["This is garbage, not JSON"])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
         result = orch.run("Anything")
         assert result["global_status"] == "failed"
 
     def test_planner_empty_tasks_fails(self):
         gate, _ = _make_gate(['{"tasks": []}'])
-        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox())
+        orch = OrchestratorGraph(gate=gate, sandbox=_make_sandbox(), meta_prompt_config=_SKIP_META)
         result = orch.run("Anything")
         assert result["global_status"] == "failed"
 
@@ -707,6 +714,7 @@ class TestSessionLaneIntegration:
             sandbox=_make_sandbox(),
             session_lane=lane,
             orchestrator_config=OrchestratorConfig(max_parallel_workers=1),
+            meta_prompt_config=_SKIP_META,
         )
 
         with patch.object(lane, "lane", side_effect=tracking_lane):
@@ -733,6 +741,7 @@ class TestOrchestratorWithRealWorkers:
             gate=gate,
             sandbox=_make_sandbox(),
             orchestrator_config=OrchestratorConfig(max_parallel_workers=1),
+            meta_prompt_config=_SKIP_META,
         )
 
         result = orch.run("Print hello world")

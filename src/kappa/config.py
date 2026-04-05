@@ -125,3 +125,16 @@ class RAGConfig:
     chunk_overlap: int = int(os.getenv("RAG_CHUNK_OVERLAP", "64"))
     top_k: int = int(os.getenv("RAG_TOP_K", "5"))
     min_score: float = float(os.getenv("RAG_MIN_SCORE", "0.0"))
+
+
+# ── Phase 6 additions ───────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class MetaPromptConfig:
+    """Meta-prompting pipeline configuration."""
+
+    ambiguity_threshold: float = float(os.getenv("META_AMBIGUITY_THRESHOLD", "0.4"))
+    max_interview_questions: int = int(os.getenv("META_MAX_INTERVIEW_QUESTIONS", "5"))
+    skip_interview: bool = False
+    skip_plan_approval: bool = False
